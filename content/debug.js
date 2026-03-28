@@ -161,67 +161,61 @@ const SC_DEBUG = {
       };
     }
 
-    // Deep dive into Activity Log items — find the actual post entries
-    const activityMain = document.querySelector('[aria-label="Activity Log Item"]')
-      || document.querySelector('[role="main"]');
-    snapshot.activityItems = [];
-    if (activityMain) {
-      // Facebook Activity Log items are typically siblings at some depth.
-      // Look for repeating div patterns that contain activity text.
-      const allDivs = activityMain.querySelectorAll('div');
-      const seen = new Set();
-      for (const div of allDivs) {
-        const text = div.textContent?.trim() || '';
-        // Activity items typically start with the user's name and an action
-        if (text.length > 20 && text.length < 500 &&
-            (text.includes('shared') || text.includes('updated') || text.includes('posted') ||
-             text.includes('wrote') || text.includes('added') || text.includes('changed') ||
-             text.includes('liked') || text.includes('commented'))) {
-          // Avoid duplicates (parent divs contain same text)
-          const key = text.substring(0, 80);
-          if (seen.has(key)) continue;
-          seen.add(key);
-
-          // Get info about this element and its clickable children
-          const buttons = div.querySelectorAll('[role="button"], button, [aria-haspopup]');
-          const links = div.querySelectorAll('a[href]');
-          const imgs = div.querySelectorAll('img');
-
-          snapshot.activityItems.push({
-            text: text.substring(0, 200),
-            tag: div.tagName.toLowerCase(),
-            className: div.className.substring(0, 80),
-            parentClassName: div.parentElement?.className?.substring(0, 80) || '',
-            childCount: div.children.length,
-            depth: getDepth(div, activityMain),
-            buttons: Array.from(buttons).slice(0, 5).map(b => ({
-              tag: b.tagName.toLowerCase(),
-              role: b.getAttribute('role'),
-              ariaLabel: b.getAttribute('aria-label'),
-              text: b.textContent?.trim()?.substring(0, 50),
-              hasPopup: b.getAttribute('aria-haspopup'),
-            })),
-            links: Array.from(links).slice(0, 3).map(l => ({
-              href: l.href.substring(0, 100),
-              text: l.textContent?.trim()?.substring(0, 50),
-            })),
-            imgCount: imgs.length,
-            outerHTML: div.outerHTML.substring(0, 400),
-          });
-
-          if (snapshot.activityItems.length >= 5) break;
+    // Deep dive: find [aria-label="Activity Log Item"] and dump its nested structure
+    const activityContainer = document.querySelector('[aria-label="Activity Log Item"]');
+    snapshot.activityDive = null;
+    if (activityContainer) {
+      // Walk down until we find the first level with multiple children (the item list)
+      let current = activityContainer;
+      let path = [];
+      for (let i = 0; i < 20; i++) {
+        path.push({
+          depth: i,
+          tag: current.tagName?.toLowerCase(),
+          childCount: current.children?.length || 0,
+          role: current.getAttribute?.('role'),
+          ariaLabel: current.getAttribute?.('aria-label'),
+          className: current.className?.substring?.(0, 60) || '',
+        });
+        if (current.children?.length > 1) {
+          // Found the branching point — dump all children at this level
+          const children = Array.from(current.children).slice(0, 10);
+          snapshot.activityDive = {
+            path,
+            branchAt: i,
+            childCount: current.children.length,
+            children: children.map((child, idx) => {
+              const buttons = child.querySelectorAll('[role="button"], [aria-haspopup]');
+              const links = child.querySelectorAll('a[href]');
+              return {
+                index: idx,
+                tag: child.tagName?.toLowerCase(),
+                className: child.className?.substring?.(0, 80),
+                childCount: child.children?.length || 0,
+                textPreview: child.textContent?.trim()?.substring(0, 150),
+                buttonCount: buttons.length,
+                buttons: Array.from(buttons).slice(0, 3).map(b => ({
+                  ariaLabel: b.getAttribute('aria-label'),
+                  role: b.getAttribute('role'),
+                  text: b.textContent?.trim()?.substring(0, 40),
+                })),
+                linkCount: links.length,
+                links: Array.from(links).slice(0, 3).map(l => ({
+                  href: l.href?.substring(0, 120),
+                  text: l.textContent?.trim()?.substring(0, 40),
+                })),
+                outerHTML: child.outerHTML?.substring(0, 500),
+              };
+            }),
+          };
+          break;
         }
+        if (!current.children?.length) break;
+        current = current.children[0];
       }
-    }
-
-    function getDepth(el, root) {
-      let depth = 0;
-      let current = el;
-      while (current && current !== root) {
-        depth++;
-        current = current.parentElement;
+      if (!snapshot.activityDive) {
+        snapshot.activityDive = { path, branchAt: null, note: 'Never found multiple children' };
       }
-      return depth;
     }
 
     this.log('snapshot', 'Page snapshot captured', snapshot);
