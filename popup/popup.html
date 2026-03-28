@@ -14,10 +14,14 @@
       <span id="status-text">Idle</span>
     </div>
 
-    <div class="categories">
-      <label><input type="checkbox" id="cat-posts" checked> Posts</label>
-      <label><input type="checkbox" id="cat-comments" checked> Comments</label>
-      <label><input type="checkbox" id="cat-reactions" checked> Reactions</label>
+    <div class="nav-section">
+      <label class="nav-label">Open Activity Log:</label>
+      <div class="nav-buttons">
+        <button id="nav-posts" class="btn btn-nav">Posts</button>
+        <button id="nav-comments" class="btn btn-nav">Comments</button>
+        <button id="nav-reactions" class="btn btn-nav">Reactions</button>
+      </div>
+      <p id="current-page" class="nav-hint">Not on Activity Log</p>
     </div>
 
     <div class="date-filter">
