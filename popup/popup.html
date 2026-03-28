@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Social Cleanup</h1>
+    <p class="subtitle">Facebook Activity Cleaner</p>
+
+    <div id="status-bar" class="status idle">
+      <span id="status-icon">●</span>
+      <span id="status-text">Idle</span>
+    </div>
+
+    <div class="categories">
+      <label><input type="checkbox" id="cat-posts" checked> Posts</label>
+      <label><input type="checkbox" id="cat-comments" checked> Comments</label>
+      <label><input type="checkbox" id="cat-reactions" checked> Reactions</label>
+    </div>
+
+    <div class="controls">
+      <button id="btn-start" class="btn btn-primary">Start Cleanup</button>
+      <button id="btn-pause" class="btn btn-warning" hidden>Pause</button>
+      <button id="btn-resume" class="btn btn-primary" hidden>Resume</button>
+      <button id="btn-stop" class="btn btn-danger" hidden>Stop</button>
+    </div>
+
+    <div class="stats" id="stats" hidden>
+      <div class="stat-row">
+        <span class="stat-label">Posts deleted:</span>
+        <span id="stat-posts">0</span>
+        <span class="stat-sub">(<span id="stat-photos">0</span> photos saved)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Comments deleted:</span>
+        <span id="stat-comments">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Reactions removed:</span>
+        <span id="stat-reactions">0</span>
+      </div>
+    </div>
+
+    <div class="log-container" id="log-container" hidden>
+      <h3>Activity Log</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/messages.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
