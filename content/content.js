@@ -85,14 +85,27 @@
     simulateClick(menuBtn);
     await delay(500, 1000);
 
-    let deleteOption;
-    if (currentCategory === 'reactions') {
-      deleteOption = SC_SELECTORS.getMenuOption('remove') || SC_SELECTORS.getMenuOption('unlike');
-    } else {
-      // Facebook uses "Move to trash", "Trash", or "Delete" depending on context
-      deleteOption = SC_SELECTORS.getMenuOption('move to trash')
-        || SC_SELECTORS.getMenuOption('trash')
-        || SC_SELECTORS.getMenuOption('delete');
+    // Wait for the menu to fully render
+    await delay(800, 1200);
+
+    // Try all possible delete/remove option texts
+    const deleteTexts = currentCategory === 'reactions'
+      ? ['remove', 'unlike', 'delete']
+      : ['delete', 'move to trash', 'trash', 'remove'];
+
+    let deleteOption = null;
+    for (const text of deleteTexts) {
+      deleteOption = SC_SELECTORS.getMenuOption(text);
+      if (deleteOption) break;
+    }
+
+    if (!deleteOption) {
+      // Menu might still be loading — wait and try once more
+      await delay(500, 1000);
+      for (const text of deleteTexts) {
+        deleteOption = SC_SELECTORS.getMenuOption(text);
+        if (deleteOption) break;
+      }
     }
 
     if (!deleteOption) {
