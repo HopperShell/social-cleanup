@@ -3,8 +3,10 @@
   'use strict';
 
   // Prevent multiple injections from creating duplicate loops
-  if (window._socialCleanupLoaded) return;
-  window._socialCleanupLoaded = true;
+  // Version bump this when code changes to allow new injection after extension reload
+  const SC_VERSION = 2;
+  if (window._socialCleanupVersion === SC_VERSION) return;
+  window._socialCleanupVersion = SC_VERSION;
 
   let isRunning = false;
   let isPaused = false;
@@ -88,6 +90,11 @@
     // Wait for the menu to fully render
     await delay(800, 1200);
 
+    // Log what menu options are actually visible for debugging
+    const allMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
+    const menuTexts = Array.from(allMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
+    console.log('Social Cleanup: Menu options found:', menuTexts);
+
     // Try all possible delete/remove option texts
     const deleteTexts = currentCategory === 'reactions'
       ? ['remove', 'unlike', 'delete']
@@ -101,7 +108,11 @@
 
     if (!deleteOption) {
       // Menu might still be loading — wait and try once more
-      await delay(500, 1000);
+      await delay(1000, 1500);
+      const retryMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
+      const retryTexts = Array.from(retryMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
+      console.log('Social Cleanup: Menu options (retry):', retryTexts);
+
       for (const text of deleteTexts) {
         deleteOption = SC_SELECTORS.getMenuOption(text);
         if (deleteOption) break;
@@ -110,7 +121,7 @@
 
     if (!deleteOption) {
       document.body.click();
-      throw new Error('Could not find delete/remove option in menu');
+      throw new Error(`Could not find delete/remove option. Menu had: [${menuTexts.join(', ')}]`);
     }
     simulateClick(deleteOption);
     await delay(500, 1000);
