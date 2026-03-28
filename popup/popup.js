@@ -73,6 +73,8 @@ async function navigateTo(category) {
 
 function updateUI(state) {
   if (!state) return;
+  // Guard against null elements (stale popup or missing DOM)
+  if (!elements.statusBar) return;
 
   const status = state.status || SC_CONSTANTS.STATUS.IDLE;
   elements.statusBar.className = `status ${status}`;
