@@ -85,7 +85,10 @@
     if (currentCategory === 'reactions') {
       deleteOption = SC_SELECTORS.getMenuOption('remove') || SC_SELECTORS.getMenuOption('unlike');
     } else {
-      deleteOption = SC_SELECTORS.getMenuOption('delete');
+      // Facebook uses "Move to trash", "Trash", or "Delete" depending on context
+      deleteOption = SC_SELECTORS.getMenuOption('move to trash')
+        || SC_SELECTORS.getMenuOption('trash')
+        || SC_SELECTORS.getMenuOption('delete');
     }
 
     if (!deleteOption) {
