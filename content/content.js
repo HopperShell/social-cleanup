@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 6;
+  const SC_VERSION = 7;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -332,6 +332,10 @@
 
       // Find the last item that's old enough to delete (work from bottom up)
       let item = null;
+      const lastItemDate = SC_SELECTORS.getItemDate(items[items.length - 1]);
+      const firstItemDate = SC_SELECTORS.getItemDate(items[0]);
+      rlog(`Dates: first=${firstItemDate}, last=${lastItemDate}, cutoff=${deleteBefore}`);
+
       for (let i = items.length - 1; i >= 0; i--) {
         if (!isTooRecent(items[i])) {
           item = items[i];
@@ -405,6 +409,15 @@
 
       case SC_MESSAGES.PAUSE_CLEANUP:
         isPaused = true;
+        isRunning = false;
+        rlog('PAUSE received — stopping loop');
+        sendResponse({ ok: true });
+        break;
+
+      case SC_MESSAGES.USER_STOP:
+        isPaused = true;
+        isRunning = false;
+        rlog('STOP received — stopping loop');
         sendResponse({ ok: true });
         break;
 

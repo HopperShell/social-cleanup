@@ -165,6 +165,10 @@ async function handleStart(payload) {
 }
 
 async function handlePause() {
+  // Tell content script to stop immediately
+  if (state.activeTabId) {
+    chrome.tabs.sendMessage(state.activeTabId, createMessage(SC_MESSAGES.PAUSE_CLEANUP)).catch(() => {});
+  }
   state.status = SC_CONSTANTS.STATUS.PAUSED;
   addLogEntry('Paused');
   await saveState();
@@ -186,6 +190,10 @@ async function handleResume() {
 }
 
 async function handleStop() {
+  // Tell content script to stop immediately
+  if (state.activeTabId) {
+    chrome.tabs.sendMessage(state.activeTabId, createMessage(SC_MESSAGES.USER_STOP)).catch(() => {});
+  }
   state.status = SC_CONSTANTS.STATUS.IDLE;
   state.currentCategory = null;
   state.activeTabId = null;
