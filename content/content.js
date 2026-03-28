@@ -8,14 +8,15 @@
   let deleteBefore = null; // ISO date string cutoff
 
   function detectCategory() {
-    const url = window.location.href;
-    if (url.includes('POSTSYOUVEWRITTEN') || url.includes('postsyouvewritten')) return 'posts';
-    if (url.includes('COMMENTSCLIPS') || url.includes('commentsclips') || url.includes('comments')) return 'comments';
-    if (url.includes('REACTIONSCLIPS') || url.includes('reactionsclips') || url.includes('reactions')) return 'reactions';
-    // Also try matching newer URL patterns
-    if (url.includes('allactivity') && url.includes('post')) return 'posts';
-    if (url.includes('allactivity') && url.includes('comment')) return 'comments';
-    if (url.includes('allactivity') && url.includes('reaction')) return 'reactions';
+    const url = window.location.href.toLowerCase();
+    // Current Facebook URL patterns (2025+)
+    if (url.includes('category_key=statuscluster')) return 'posts';
+    if (url.includes('category_key=commentscluster')) return 'comments';
+    if (url.includes('category_key=likes')) return 'reactions';
+    // Legacy URL patterns (pre-2025)
+    if (url.includes('postsyouvewritten')) return 'posts';
+    if (url.includes('commentsclips')) return 'comments';
+    if (url.includes('reactionsclips')) return 'reactions';
     return null;
   }
 
