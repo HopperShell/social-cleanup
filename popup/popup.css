@@ -61,6 +61,34 @@ h1 {
   cursor: pointer;
 }
 
+.date-filter {
+  margin-bottom: 12px;
+}
+
+.date-filter label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.date-filter input[type="date"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #495057;
+}
+
+.date-hint {
+  font-size: 10px;
+  color: #adb5bd;
+  margin-top: 2px;
+}
+
 .controls {
   display: flex;
   gap: 8px;

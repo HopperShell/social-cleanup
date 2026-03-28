@@ -12,6 +12,7 @@ const DEFAULT_STATE = {
     comments: { enabled: true, deleted: 0 },
     reactions: { enabled: true, deleted: 0 },
   },
+  deleteBefore: null, // ISO date string — only delete items older than this
   consecutiveFailures: 0,
   backoffUntil: null,
   log: [],
@@ -97,6 +98,7 @@ async function handleStart(payload) {
       state.categories[cat].enabled = !!payload.categories[cat];
     }
   }
+  state.deleteBefore = (payload && payload.deleteBefore) || null;
   state.status = SC_CONSTANTS.STATUS.RUNNING;
   state.currentCategory = getEnabledCategories()[0] || null;
   state.consecutiveFailures = 0;
@@ -106,7 +108,8 @@ async function handleStart(payload) {
     await saveState();
     return { error: 'No categories selected' };
   }
-  addLogEntry(`Starting cleanup: ${getEnabledCategories().join(', ')}`);
+  const dateMsg = state.deleteBefore ? ` (before ${state.deleteBefore})` : '';
+  addLogEntry(`Starting cleanup: ${getEnabledCategories().join(', ')}${dateMsg}`);
   await saveState();
   await navigateToCategory(state.currentCategory);
   return { ...state };
