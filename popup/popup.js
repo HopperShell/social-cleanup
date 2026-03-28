@@ -19,6 +19,7 @@ const elements = {
   logContainer: $('#log-container'),
   log: $('#log'),
   deleteBefore: $('#delete-before'),
+  btnDebug: $('#btn-debug'),
 };
 
 function send(type, payload = {}) {
@@ -108,6 +109,18 @@ elements.btnResume.addEventListener('click', async () => {
 elements.btnStop.addEventListener('click', async () => {
   const state = await send(SC_MESSAGES.USER_STOP);
   updateUI(state);
+});
+
+elements.btnDebug.addEventListener('click', async () => {
+  elements.btnDebug.textContent = 'Dumping...';
+  elements.btnDebug.disabled = true;
+  const result = await send(SC_MESSAGES.DUMP_DEBUG);
+  elements.btnDebug.textContent = result.error ? 'Error — see console' : 'Saved!';
+  if (result.error) console.error('Debug dump error:', result.error);
+  setTimeout(() => {
+    elements.btnDebug.textContent = 'Dump Debug Log';
+    elements.btnDebug.disabled = false;
+  }, 2000);
 });
 
 chrome.runtime.onMessage.addListener((message) => {

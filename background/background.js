@@ -81,6 +81,10 @@ async function handleMessage(message, sender) {
       return await handleCategoryComplete(message.payload);
     case SC_MESSAGES.ACTION_ERROR:
       return await handleActionError(message.payload);
+    case SC_MESSAGES.DUMP_DEBUG:
+      return await handleDumpDebug();
+    case SC_MESSAGES.DEBUG_REPORT:
+      return await handleDebugReport(message.payload);
     default:
       console.warn('Unknown message type:', message.type);
       return { error: 'Unknown message type' };
@@ -253,7 +257,46 @@ function guessExtension(url) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Error Handling and Backoff
+// 6. Debug Logging
+// ---------------------------------------------------------------------------
+
+async function handleDumpDebug() {
+  // Ask the active Facebook tab to run diagnostics and send back a report
+  const tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*' });
+  if (tabs.length === 0) {
+    return { error: 'No Facebook tab open. Open Facebook first, then try again.' };
+  }
+  const tabId = tabs[0].id;
+  try {
+    await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.DUMP_DEBUG));
+    return { ok: true, message: 'Debug dump requested — check Downloads for social-cleanup-debug.json' };
+  } catch (err) {
+    return { error: `Could not reach content script: ${err.message}. Reload the Facebook page and try again.` };
+  }
+}
+
+async function handleDebugReport(payload) {
+  const { report } = payload;
+  // Save debug report as a downloadable file
+  const blob = new Blob([report], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  try {
+    await chrome.downloads.download({
+      url,
+      filename: 'social-cleanup-debug.json',
+      conflictAction: 'overwrite',
+    });
+    addLogEntry('Debug log saved to Downloads/social-cleanup-debug.json');
+    await saveState();
+    broadcastState();
+  } catch (err) {
+    addLogEntry(`Failed to save debug log: ${err.message}`);
+  }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// 7. Error Handling and Backoff
 // ---------------------------------------------------------------------------
 
 async function handleActionError(payload) {

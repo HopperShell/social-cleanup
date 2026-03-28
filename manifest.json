@@ -17,10 +17,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.facebook.com/allactivity*"],
+      "matches": ["*://*.facebook.com/*"],
       "js": [
         "shared/constants.js",
         "shared/messages.js",
+        "content/debug.js",
         "content/selectors.js",
         "content/posts.js",
         "content/comments.js",

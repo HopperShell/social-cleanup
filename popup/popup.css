@@ -168,3 +168,22 @@ h1 {
   color: #adb5bd;
   margin-right: 6px;
 }
+
+.debug-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn-debug {
+  background: #6c757d;
+  color: white;
+  width: 100%;
+}
+
+.debug-hint {
+  font-size: 10px;
+  color: #adb5bd;
+  margin-top: 4px;
+  text-align: center;
+}
