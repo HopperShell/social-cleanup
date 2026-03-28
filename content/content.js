@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 3;
+  const SC_VERSION = 4;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -257,9 +257,13 @@
 
     // Phase 2: Process items (delete from the bottom up to avoid skipping)
     let noNewItemsCount = 0;
+    let totalDeleted = 0;
 
     while (isRunning && !isPaused) {
+      // Invalidate cache each iteration to get fresh DOM
+      SC_SELECTORS._containerCache = null;
       const items = SC_SELECTORS.getActivityItems();
+      console.log(`Social Cleanup: Loop iteration — ${items.length} items, noNew=${noNewItemsCount}, deleted=${totalDeleted}, isPaused=${isPaused}, isRunning=${isRunning}`);
 
       if (items.length === 0) {
         // After a deletion, the DOM may be updating — wait longer before giving up
@@ -307,7 +311,9 @@
 
       // If no deletable items found, we're done (all remaining are too recent)
       if (!item) {
-        console.log('Social Cleanup: All remaining items are newer than cutoff — done');
+        const lastDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[items.length - 1]) : 'none';
+        const firstDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[0]) : 'none';
+        console.log(`Social Cleanup: No deletable items — ${items.length} items, dates ${firstDate} to ${lastDate}, cutoff ${deleteBefore}`);
         await chrome.runtime.sendMessage(
           createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
         );
@@ -327,8 +333,8 @@
             await processReaction(item);
             break;
         }
-        // Invalidate selector cache after successful deletion
-        SC_SELECTORS._containerCache = null;
+        totalDeleted++;
+        console.log(`Social Cleanup: Deleted item #${totalDeleted}`);
         // Wait for DOM to settle after deletion
         await delay(1000, 2000);
       } catch (err) {
