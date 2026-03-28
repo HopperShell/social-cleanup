@@ -422,44 +422,8 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-// When the Activity Log tab finishes loading, inject scripts and tell content script to start
-// BUT only when we navigated there ourselves (not reusing an existing tab)
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (tabId !== state.activeTabId) return;
-  if (changeInfo.status !== 'complete') return;
-  if (state.status !== SC_CONSTANTS.STATUS.RUNNING) return;
-  if (state.reusingTab) return; // Don't interfere with an existing tab
-
-  // Give the page a moment to render, then inject scripts and start
-  setTimeout(async () => {
-    try {
-      await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP));
-    } catch {
-      // Content script not loaded — inject it
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: [
-            'shared/constants.js',
-            'shared/messages.js',
-            'content/debug.js',
-            'content/selectors.js',
-            'content/posts.js',
-            'content/comments.js',
-            'content/reactions.js',
-            'content/content.js',
-          ],
-        });
-        await new Promise(r => setTimeout(r, 1000));
-        await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP));
-      } catch (err) {
-        addLogEntry(`Failed to inject scripts: ${err.message}`);
-        await saveState();
-        broadcastState();
-      }
-    }
-  }, 3000);
-});
+// Content script auto-starts via GET_STATE check on page load.
+// No onUpdated listener needed — it was causing race conditions.
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tabId === state.activeTabId && state.status === SC_CONSTANTS.STATUS.RUNNING) {

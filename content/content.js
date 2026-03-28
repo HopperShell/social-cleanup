@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 2;
+  const SC_VERSION = 3;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -403,16 +403,27 @@
   });
 
   // Auto-start if navigated here by the extension
-  setTimeout(async () => {
+  async function tryAutoStart() {
     try {
       const state = await chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE));
       if (state && state.status === SC_CONSTANTS.STATUS.RUNNING && !state.reusingTab) {
         deleteBefore = state.deleteBefore || null;
-        console.log('Social Cleanup: Page loaded, auto-starting cleanup');
+        console.log('Social Cleanup: Page loaded, auto-starting cleanup, deleteBefore =', deleteBefore);
         runCleanupLoop();
+        return true;
       }
     } catch {
       // Extension context may have been invalidated
     }
-  }, 2000);
+    return false;
+  }
+
+  // Try after page settles, retry once if Activity Log hasn't loaded yet
+  setTimeout(async () => {
+    const started = await tryAutoStart();
+    if (!started) {
+      // Retry after 5 more seconds in case page was slow
+      setTimeout(() => tryAutoStart(), 5000);
+    }
+  }, 3000);
 })();
