@@ -176,7 +176,58 @@
     }
 
     console.log(`Social Cleanup: Starting ${currentCategory} cleanup`);
+    console.log(`Social Cleanup: deleteBefore = ${deleteBefore}`);
 
+    // Phase 1: If date filter is set, scroll down until we reach items older than the cutoff
+    if (deleteBefore) {
+      console.log(`Social Cleanup: Scrolling to find items before ${deleteBefore}...`);
+      await chrome.runtime.sendMessage(
+        createMessage(SC_MESSAGES.ACTION_ERROR, { error: `Scrolling to reach posts before ${deleteBefore}... please wait` })
+      );
+
+      let foundOldItems = false;
+      let scrollAttempts = 0;
+      const maxScrollAttempts = 5000; // Safety limit
+
+      while (isRunning && !isPaused && !foundOldItems && scrollAttempts < maxScrollAttempts) {
+        const items = SC_SELECTORS.getActivityItems();
+
+        // Check the LAST item on the page — is it old enough?
+        if (items.length > 0) {
+          const lastItem = items[items.length - 1];
+          const lastDate = SC_SELECTORS.getItemDate(lastItem);
+          if (lastDate < deleteBefore) {
+            foundOldItems = true;
+            console.log(`Social Cleanup: Found items from ${lastDate}, ready to delete`);
+            break;
+          }
+        }
+
+        // Keep scrolling
+        SC_SELECTORS.scrollToLoadMore();
+        await waitForMutation(2000);
+        await delay(300, 600);
+        scrollAttempts++;
+
+        // Log progress every 50 scrolls
+        if (scrollAttempts % 50 === 0) {
+          const items2 = SC_SELECTORS.getActivityItems();
+          const lastDate2 = items2.length > 0 ? SC_SELECTORS.getItemDate(items2[items2.length - 1]) : 'unknown';
+          console.log(`Social Cleanup: Scrolled ${scrollAttempts} times, latest loaded: ${lastDate2}`);
+        }
+
+        if (SC_SELECTORS.isEndOfList()) {
+          console.log('Social Cleanup: Reached end of list before finding target date');
+          break;
+        }
+      }
+
+      if (!foundOldItems) {
+        console.log('Social Cleanup: Could not find items before cutoff date');
+      }
+    }
+
+    // Phase 2: Process items (delete from the bottom up to avoid skipping)
     let noNewItemsCount = 0;
 
     while (isRunning && !isPaused) {
@@ -204,17 +255,24 @@
       }
 
       noNewItemsCount = 0;
-      const item = items[0];
 
-      // Skip items newer than the date cutoff
-      if (isTooRecent(item)) {
-        // Activity Log shows newest first — scroll to find older items
-        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        await delay(500, 1000);
-        // Remove this item from consideration by scrolling past it
-        SC_SELECTORS.scrollToLoadMore();
-        await waitForMutation(2000);
-        continue;
+      // Find the last item that's old enough to delete (work from bottom up)
+      let item = null;
+      for (let i = items.length - 1; i >= 0; i--) {
+        if (!isTooRecent(items[i])) {
+          item = items[i];
+          break;
+        }
+      }
+
+      // If no deletable items found, we're done (all remaining are too recent)
+      if (!item) {
+        console.log('Social Cleanup: All remaining items are newer than cutoff — done');
+        await chrome.runtime.sendMessage(
+          createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
+        );
+        isRunning = false;
+        return;
       }
 
       try {
