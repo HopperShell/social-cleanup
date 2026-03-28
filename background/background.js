@@ -115,7 +115,40 @@ async function handleStart(payload) {
   const dateMsg = state.deleteBefore ? ` (before ${state.deleteBefore})` : '';
   addLogEntry(`Starting cleanup: ${getEnabledCategories().join(', ')}${dateMsg}`);
   await saveState();
-  await navigateToCategory(state.currentCategory);
+
+  // Check if there's already an Activity Log tab open — if so, just start on it
+  const existingTabs = await chrome.tabs.query({ url: '*://*.facebook.com/*/allactivity*' });
+  if (existingTabs.length > 0) {
+    state.activeTabId = existingTabs[0].id;
+    addLogEntry('Using existing Activity Log tab');
+    await saveState();
+    // Inject scripts and start cleanup directly on the existing tab
+    try {
+      await chrome.tabs.sendMessage(state.activeTabId, createMessage(SC_MESSAGES.START_CLEANUP));
+    } catch {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: state.activeTabId },
+          files: [
+            'shared/constants.js',
+            'shared/messages.js',
+            'content/debug.js',
+            'content/selectors.js',
+            'content/posts.js',
+            'content/comments.js',
+            'content/reactions.js',
+            'content/content.js',
+          ],
+        });
+        await new Promise(r => setTimeout(r, 1000));
+        await chrome.tabs.sendMessage(state.activeTabId, createMessage(SC_MESSAGES.START_CLEANUP));
+      } catch (err) {
+        addLogEntry(`Failed to start on existing tab: ${err.message}`);
+      }
+    }
+  } else {
+    await navigateToCategory(state.currentCategory);
+  }
   return { ...state };
 }
 

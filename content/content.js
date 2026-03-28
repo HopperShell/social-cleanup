@@ -313,13 +313,12 @@
     switch (message.type) {
       case SC_MESSAGES.START_CLEANUP:
         isPaused = false;
+        isRunning = false; // Reset so a new run can start
         // Load date filter from background state BEFORE starting the loop
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
           console.log('Social Cleanup: deleteBefore =', deleteBefore);
-          if (!isRunning) {
-            runCleanupLoop();
-          }
+          runCleanupLoop();
         });
         sendResponse({ ok: true });
         break;
