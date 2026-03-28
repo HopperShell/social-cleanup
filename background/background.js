@@ -288,20 +288,40 @@ async function handleDumpDebug() {
   // Prefer Activity Log tab, fall back to any Facebook tab
   let tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*/allactivity*' });
   if (tabs.length === 0) {
-    tabs = await chrome.tabs.query({ url: '*://*.facebook.com/me/allactivity*' });
-  }
-  if (tabs.length === 0) {
     tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*' });
   }
   if (tabs.length === 0) {
     return { error: 'No Facebook tab open. Open Facebook first, then try again.' };
   }
   const tabId = tabs[0].id;
+
+  // Try messaging first, if that fails, forcefully inject content scripts
   try {
     await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.DUMP_DEBUG));
     return { ok: true, message: 'Debug dump requested — check Downloads for social-cleanup-debug.json' };
-  } catch (err) {
-    return { error: `Could not reach content script: ${err.message}. Reload the Facebook page and try again.` };
+  } catch {
+    // Content script not loaded — inject it now
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: [
+          'shared/constants.js',
+          'shared/messages.js',
+          'content/debug.js',
+          'content/selectors.js',
+          'content/posts.js',
+          'content/comments.js',
+          'content/reactions.js',
+          'content/content.js',
+        ],
+      });
+      // Wait a moment for scripts to initialize, then send the debug message
+      await new Promise(r => setTimeout(r, 1000));
+      await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.DUMP_DEBUG));
+      return { ok: true, message: 'Scripts injected and debug dump requested' };
+    } catch (err) {
+      return { error: `Failed to inject scripts: ${err.message}` };
+    }
   }
 }
 
@@ -371,17 +391,40 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-// When the Activity Log tab finishes loading, tell content script to start
+// When the Activity Log tab finishes loading, inject scripts and tell content script to start
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tabId !== state.activeTabId) return;
   if (changeInfo.status !== 'complete') return;
   if (state.status !== SC_CONSTANTS.STATUS.RUNNING) return;
 
-  // Give the page a moment to render its content
-  setTimeout(() => {
-    chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP)).catch(() => {
-      // Content script may not be injected yet — the content script's auto-start will handle it
-    });
+  // Give the page a moment to render, then inject scripts and start
+  setTimeout(async () => {
+    try {
+      await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP));
+    } catch {
+      // Content script not loaded — inject it
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: [
+            'shared/constants.js',
+            'shared/messages.js',
+            'content/debug.js',
+            'content/selectors.js',
+            'content/posts.js',
+            'content/comments.js',
+            'content/reactions.js',
+            'content/content.js',
+          ],
+        });
+        await new Promise(r => setTimeout(r, 1000));
+        await chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP));
+      } catch (err) {
+        addLogEntry(`Failed to inject scripts: ${err.message}`);
+        await saveState();
+        broadcastState();
+      }
+    }
   }, 3000);
 });
 
