@@ -13,6 +13,7 @@ const DEFAULT_STATE = {
     reactions: { enabled: true, deleted: 0 },
   },
   deleteBefore: null, // ISO date string — only delete items older than this
+  reusingTab: false, // true if we're using a pre-existing Activity Log tab
   consecutiveFailures: 0,
   backoffUntil: null,
   log: [],
@@ -120,7 +121,8 @@ async function handleStart(payload) {
   const existingTabs = await chrome.tabs.query({ url: '*://*.facebook.com/*/allactivity*' });
   if (existingTabs.length > 0) {
     state.activeTabId = existingTabs[0].id;
-    addLogEntry('Using existing Activity Log tab');
+    state.reusingTab = true;
+    addLogEntry('Using existing Activity Log tab — will not navigate away');
     await saveState();
     // Inject scripts and start cleanup directly on the existing tab
     try {
@@ -241,6 +243,18 @@ async function navigateToCategory(category) {
 async function handleCategoryComplete(payload) {
   const category = payload.category || state.currentCategory;
   addLogEntry(`Finished ${category}`);
+
+  // If we're reusing an existing tab, don't navigate away — just stop
+  if (state.reusingTab) {
+    state.status = SC_CONSTANTS.STATUS.COMPLETE;
+    state.currentCategory = null;
+    state.reusingTab = false;
+    addLogEntry('Done! Change date or category and run again.');
+    await saveState();
+    broadcastState();
+    return { ...state };
+  }
+
   const next = getNextCategory();
   if (next) {
     state.currentCategory = next;
