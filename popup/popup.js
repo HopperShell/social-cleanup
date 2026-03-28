@@ -102,7 +102,7 @@ function updateUI(state) {
   elements.btnResume.hidden = !isPaused;
   elements.btnStop.hidden = isIdle;
 
-  elements.deleteBefore.disabled = !isIdle;
+  if (elements.deleteBefore) elements.deleteBefore.disabled = !isIdle;
 
   if (state.categories) {
     elements.stats.hidden = false;
