@@ -439,10 +439,12 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 // When the Activity Log tab finishes loading, inject scripts and tell content script to start
+// BUT only when we navigated there ourselves (not reusing an existing tab)
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tabId !== state.activeTabId) return;
   if (changeInfo.status !== 'complete') return;
   if (state.status !== SC_CONSTANTS.STATUS.RUNNING) return;
+  if (state.reusingTab) return; // Don't interfere with an existing tab
 
   // Give the page a moment to render, then inject scripts and start
   setTimeout(async () => {
