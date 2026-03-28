@@ -234,12 +234,24 @@
       const items = SC_SELECTORS.getActivityItems();
 
       if (items.length === 0) {
+        // After a deletion, the DOM may be updating — wait longer before giving up
+        await delay(1500, 2500);
+
+        // Re-check after waiting
+        const itemsRetry = SC_SELECTORS.getActivityItems();
+        if (itemsRetry.length > 0) {
+          noNewItemsCount = 0;
+          continue;
+        }
+
+        // Still empty — try scrolling to load more
         SC_SELECTORS.scrollToLoadMore();
         const loaded = await waitForMutation(3000);
 
         if (!loaded || SC_SELECTORS.isEndOfList()) {
           noNewItemsCount++;
-          if (noNewItemsCount >= 3) {
+          // Be patient — need 10 consecutive empty checks before giving up
+          if (noNewItemsCount >= 10) {
             console.log(`Social Cleanup: No more ${currentCategory} to process`);
             await chrome.runtime.sendMessage(
               createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
@@ -287,6 +299,10 @@
             await processReaction(item);
             break;
         }
+        // Invalidate selector cache after successful deletion
+        SC_SELECTORS._containerCache = null;
+        // Wait for DOM to settle after deletion
+        await delay(1000, 2000);
       } catch (err) {
         console.warn(`Social Cleanup: Error processing item:`, err.message);
 
