@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 5;
+  const SC_VERSION = 6;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -51,15 +51,20 @@
 
   function simulateClick(element) {
     if (!element) return false;
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const events = ['mousedown', 'mouseup', 'click'];
-    for (const eventType of events) {
-      element.dispatchEvent(new MouseEvent(eventType, {
+    element.scrollIntoView({ behavior: 'instant', block: 'center' });
+    // Try multiple click strategies — Facebook's React is picky
+    // Strategy 1: Full mouse event sequence with pointer events
+    for (const eventType of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+      element.dispatchEvent(new PointerEvent(eventType, {
         bubbles: true,
         cancelable: true,
         view: window,
+        pointerId: 1,
+        pointerType: 'mouse',
       }));
     }
+    // Strategy 2: Direct .click() as fallback
+    try { element.click(); } catch {}
     return true;
   }
 
@@ -91,52 +96,66 @@
   }
 
   async function deleteItem(item) {
+    // Dismiss any stale menu/dialog first
+    const existingMenu = document.querySelector('[role="menu"]');
+    if (existingMenu) {
+      document.body.click();
+      await delay(300, 500);
+    }
+    const existingDialog = document.querySelector('[role="dialog"]');
+    if (existingDialog) {
+      const closeBtn = existingDialog.querySelector('[aria-label="Close"]');
+      if (closeBtn) simulateClick(closeBtn);
+      await delay(300, 500);
+    }
+
     const menuBtn = SC_SELECTORS.getMenuButton(item);
     if (!menuBtn) {
       throw new Error('Could not find action menu button');
     }
     simulateClick(menuBtn);
-    await delay(500, 1000);
 
-    // Wait for the menu to fully render
-    await delay(800, 1200);
-
-    // Log what menu options are actually visible for debugging
-    const allMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
-    const menuTexts = Array.from(allMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
-    rlog(`Menu options found: ${menuTexts.join(', ')}`);
-
-    // Try all possible delete/remove option texts
+    // Wait for the menu to appear with polling
     const deleteTexts = currentCategory === 'reactions'
       ? ['remove', 'unlike', 'delete']
       : ['delete', 'move to trash', 'trash', 'remove'];
 
     let deleteOption = null;
-    for (const text of deleteTexts) {
-      deleteOption = SC_SELECTORS.getMenuOption(text);
-      if (deleteOption) break;
-    }
+    // Poll for menu options up to 3 seconds
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await delay(400, 600);
 
-    if (!deleteOption) {
-      // Menu might still be loading — wait and try once more
-      await delay(1000, 1500);
-      const retryMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
-      const retryTexts = Array.from(retryMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
-      rlog(`Menu options (retry): ${retryTexts.join(', ')}`);
+      const allMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
+      const menuTexts = Array.from(allMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
+
+      if (attempt === 0 || menuTexts.length > 0) {
+        rlog(`Menu options (attempt ${attempt}): ${menuTexts.join(', ')}`);
+      }
 
       for (const text of deleteTexts) {
         deleteOption = SC_SELECTORS.getMenuOption(text);
         if (deleteOption) break;
       }
+      if (deleteOption) break;
+
+      // If no menu items at all, the menu might not have opened — try clicking again
+      if (attempt === 2 && menuTexts.length === 0) {
+        rlog('Menu empty after 3 attempts, re-clicking menu button');
+        document.body.click();
+        await delay(300, 500);
+        simulateClick(menuBtn);
+      }
     }
 
     if (!deleteOption) {
       document.body.click();
-      throw new Error(`Could not find delete/remove option. Menu had: [${menuTexts.join(', ')}]`);
+      throw new Error('Could not find delete/remove option after 6 attempts');
     }
-    simulateClick(deleteOption);
-    await delay(500, 1000);
 
+    simulateClick(deleteOption);
+
+    // Wait for confirmation dialog or direct deletion
+    await delay(500, 800);
     try {
       const confirmBtn = await waitFor(() => SC_SELECTORS.getConfirmButton(), 3000);
       if (confirmBtn) {
