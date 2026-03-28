@@ -2,6 +2,10 @@
 (function () {
   'use strict';
 
+  // Prevent multiple injections from creating duplicate loops
+  if (window._socialCleanupLoaded) return;
+  window._socialCleanupLoaded = true;
+
   let isRunning = false;
   let isPaused = false;
   let currentCategory = null;
@@ -378,7 +382,7 @@
   setTimeout(async () => {
     try {
       const state = await chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE));
-      if (state && state.status === SC_CONSTANTS.STATUS.RUNNING) {
+      if (state && state.status === SC_CONSTANTS.STATUS.RUNNING && !state.reusingTab) {
         deleteBefore = state.deleteBefore || null;
         console.log('Social Cleanup: Page loaded, auto-starting cleanup');
         runCleanupLoop();
