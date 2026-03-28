@@ -166,8 +166,31 @@ async function navigateToCategory(category) {
   };
   const url = urlMap[category];
   if (!url) return;
-  addLogEntry(`Navigating to ${category} activity log`);
-  if (state.activeTabId) {
+
+  // First, check if there's already an Activity Log tab open — use it instead of opening a new one
+  const existingTabs = await chrome.tabs.query({ url: '*://*.facebook.com/*/allactivity*' });
+  const meTab = await chrome.tabs.query({ url: '*://*.facebook.com/me/allactivity*' });
+  const allActivityTabs = [...meTab, ...existingTabs];
+
+  if (allActivityTabs.length > 0) {
+    // Reuse the existing Activity Log tab
+    state.activeTabId = allActivityTabs[0].id;
+    addLogEntry(`Using existing Activity Log tab`);
+    // Only navigate if the tab isn't already on the right category
+    const currentUrl = allActivityTabs[0].url || '';
+    const categoryKey = new URL(url).searchParams.get('category_key');
+    if (!currentUrl.includes(categoryKey)) {
+      await chrome.tabs.update(state.activeTabId, { url });
+      addLogEntry(`Navigating to ${category} activity log`);
+    } else {
+      addLogEntry(`Already on ${category} activity log — starting cleanup`);
+      // Tab is already on the right page, just tell content script to start
+      setTimeout(() => {
+        chrome.tabs.sendMessage(state.activeTabId, createMessage(SC_MESSAGES.START_CLEANUP)).catch(() => {});
+      }, 1000);
+    }
+  } else if (state.activeTabId) {
+    addLogEntry(`Navigating to ${category} activity log`);
     try {
       await chrome.tabs.update(state.activeTabId, { url });
     } catch {
@@ -175,6 +198,7 @@ async function navigateToCategory(category) {
       state.activeTabId = tab.id;
     }
   } else {
+    addLogEntry(`Opening ${category} activity log`);
     const tab = await chrome.tabs.create({ url });
     state.activeTabId = tab.id;
   }
@@ -261,8 +285,14 @@ function guessExtension(url) {
 // ---------------------------------------------------------------------------
 
 async function handleDumpDebug() {
-  // Ask the active Facebook tab to run diagnostics and send back a report
-  const tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*' });
+  // Prefer Activity Log tab, fall back to any Facebook tab
+  let tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*/allactivity*' });
+  if (tabs.length === 0) {
+    tabs = await chrome.tabs.query({ url: '*://*.facebook.com/me/allactivity*' });
+  }
+  if (tabs.length === 0) {
+    tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*' });
+  }
   if (tabs.length === 0) {
     return { error: 'No Facebook tab open. Open Facebook first, then try again.' };
   }
