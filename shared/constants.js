@@ -1,9 +1,9 @@
 // shared/constants.js
 const SC_CONSTANTS = {
   URLS: {
-    POSTS: 'https://www.facebook.com/allactivity?activity_history=false&category_key=POSTSYOUVEWRITTEN',
-    COMMENTS: 'https://www.facebook.com/allactivity?activity_history=false&category_key=COMMENTSCLIPS',
-    REACTIONS: 'https://www.facebook.com/allactivity?activity_history=false&category_key=REACTIONSCLIPS',
+    POSTS: 'https://www.facebook.com/me/allactivity?entry_point=profile_shortcut&category_key=statuscluster',
+    COMMENTS: 'https://www.facebook.com/me/allactivity?entry_point=profile_shortcut&category_key=commentscluster',
+    REACTIONS: 'https://www.facebook.com/me/allactivity?entry_point=profile_shortcut&category_key=likes',
   },
   CATEGORIES: ['posts', 'comments', 'reactions'],
   TIMING: {
