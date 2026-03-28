@@ -18,6 +18,7 @@ const elements = {
   statReactions: $('#stat-reactions'),
   logContainer: $('#log-container'),
   log: $('#log'),
+  deleteBefore: $('#delete-before'),
 };
 
 function send(type, payload = {}) {
@@ -58,6 +59,7 @@ function updateUI(state) {
   elements.catPosts.disabled = !isIdle;
   elements.catComments.disabled = !isIdle;
   elements.catReactions.disabled = !isIdle;
+  elements.deleteBefore.disabled = !isIdle;
 
   if (state.categories) {
     elements.stats.hidden = false;
@@ -88,7 +90,8 @@ elements.btnStart.addEventListener('click', async () => {
     comments: elements.catComments.checked,
     reactions: elements.catReactions.checked,
   };
-  const state = await send(SC_MESSAGES.USER_START, { categories });
+  const deleteBefore = elements.deleteBefore.value || null;
+  const state = await send(SC_MESSAGES.USER_START, { categories, deleteBefore });
   updateUI(state);
 });
 

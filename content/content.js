@@ -5,6 +5,7 @@
   let isRunning = false;
   let isPaused = false;
   let currentCategory = null;
+  let deleteBefore = null; // ISO date string cutoff
 
   function detectCategory() {
     const url = window.location.href;
@@ -12,6 +13,13 @@
     if (url.includes('COMMENTSCLIPS')) return 'comments';
     if (url.includes('REACTIONSCLIPS')) return 'reactions';
     return null;
+  }
+
+  // Returns true if the item is too recent to delete
+  function isTooRecent(item) {
+    if (!deleteBefore) return false;
+    const itemDate = SC_SELECTORS.getItemDate(item);
+    return itemDate >= deleteBefore; // ISO date strings compare correctly
   }
 
   function delay(min = SC_CONSTANTS.TIMING.MIN_DELAY, max = SC_CONSTANTS.TIMING.MAX_DELAY) {
@@ -190,6 +198,17 @@
       noNewItemsCount = 0;
       const item = items[0];
 
+      // Skip items newer than the date cutoff
+      if (isTooRecent(item)) {
+        // Activity Log shows newest first — scroll to find older items
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await delay(500, 1000);
+        // Remove this item from consideration by scrolling past it
+        SC_SELECTORS.scrollToLoadMore();
+        await waitForMutation(2000);
+        continue;
+      }
+
       try {
         switch (currentCategory) {
           case 'posts':
@@ -228,6 +247,10 @@
     switch (message.type) {
       case SC_MESSAGES.START_CLEANUP:
         isPaused = false;
+        // Load date filter from background state
+        chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
+          deleteBefore = (s && s.deleteBefore) || null;
+        });
         if (!isRunning) {
           runCleanupLoop();
         }
@@ -241,6 +264,9 @@
 
       case SC_MESSAGES.RESUME_CLEANUP:
         isPaused = false;
+        chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
+          deleteBefore = (s && s.deleteBefore) || null;
+        });
         if (!isRunning) {
           runCleanupLoop();
         }
@@ -258,6 +284,7 @@
     try {
       const state = await chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE));
       if (state && state.status === SC_CONSTANTS.STATUS.RUNNING) {
+        deleteBefore = state.deleteBefore || null;
         console.log('Social Cleanup: Page loaded, auto-starting cleanup');
         runCleanupLoop();
       }
