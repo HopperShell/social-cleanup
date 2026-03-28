@@ -10,24 +10,45 @@ const SC_SELECTORS = {
 
   // Find the activity log container (the div with many children inside [aria-label="Activity Log Item"])
   getContainer() {
-    // Cache for 2 seconds to avoid repeated DOM walks
-    if (this._containerCache && Date.now() - this._containerCacheTime < 2000) {
-      if (document.contains(this._containerCache)) return this._containerCache;
+    // Cache for 5 seconds — only invalidate if element is gone or lost its children
+    if (this._containerCache && Date.now() - this._containerCacheTime < 5000) {
+      if (document.contains(this._containerCache) && this._containerCache.children.length > 5) {
+        return this._containerCache;
+      }
     }
 
     const root = document.querySelector('[aria-label="Activity Log Item"]');
     if (!root) return null;
 
-    // Walk down single-child divs until we find the branching point
-    let current = root;
-    for (let i = 0; i < 20; i++) {
-      if (!current.children || current.children.length === 0) break;
-      if (current.children.length > 1) {
-        this._containerCache = current;
-        this._containerCacheTime = Date.now();
-        return current;
+    // Walk down looking for the div with MANY children (the actual item list)
+    // After a deletion, React may re-render and add intermediate wrappers,
+    // so we need to find the level with the most children, not just the first branch.
+    let best = null;
+    let bestCount = 0;
+
+    function walk(el, depth) {
+      if (depth > 15) return;
+      if (!el.children) return;
+      if (el.children.length > bestCount) {
+        best = el;
+        bestCount = el.children.length;
       }
-      current = current.children[0];
+      // If we already found a huge container, stop
+      if (bestCount > 50) return;
+      // Walk into children — but only first child if this isn't a branch
+      if (el.children.length <= 3) {
+        for (const child of el.children) {
+          walk(child, depth + 1);
+        }
+      }
+    }
+
+    walk(root, 0);
+
+    if (best && bestCount > 5) {
+      this._containerCache = best;
+      this._containerCacheTime = Date.now();
+      return best;
     }
     return null;
   },
