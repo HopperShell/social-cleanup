@@ -255,13 +255,14 @@
     switch (message.type) {
       case SC_MESSAGES.START_CLEANUP:
         isPaused = false;
-        // Load date filter from background state
+        // Load date filter from background state BEFORE starting the loop
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
+          console.log('Social Cleanup: deleteBefore =', deleteBefore);
+          if (!isRunning) {
+            runCleanupLoop();
+          }
         });
-        if (!isRunning) {
-          runCleanupLoop();
-        }
         sendResponse({ ok: true });
         break;
 
@@ -274,10 +275,10 @@
         isPaused = false;
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
+          if (!isRunning) {
+            runCleanupLoop();
+          }
         });
-        if (!isRunning) {
-          runCleanupLoop();
-        }
         sendResponse({ ok: true });
         break;
 
