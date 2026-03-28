@@ -15,6 +15,8 @@ const SC_MESSAGES = {
   USER_PAUSE: 'USER_PAUSE',
   USER_RESUME: 'USER_RESUME',
   USER_STOP: 'USER_STOP',
+  DUMP_DEBUG: 'DUMP_DEBUG',
+  DEBUG_REPORT: 'DEBUG_REPORT',
 };
 
 function createMessage(type, payload = {}) {

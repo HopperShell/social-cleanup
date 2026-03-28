@@ -9,9 +9,13 @@
 
   function detectCategory() {
     const url = window.location.href;
-    if (url.includes('POSTSYOUVEWRITTEN')) return 'posts';
-    if (url.includes('COMMENTSCLIPS')) return 'comments';
-    if (url.includes('REACTIONSCLIPS')) return 'reactions';
+    if (url.includes('POSTSYOUVEWRITTEN') || url.includes('postsyouvewritten')) return 'posts';
+    if (url.includes('COMMENTSCLIPS') || url.includes('commentsclips') || url.includes('comments')) return 'comments';
+    if (url.includes('REACTIONSCLIPS') || url.includes('reactionsclips') || url.includes('reactions')) return 'reactions';
+    // Also try matching newer URL patterns
+    if (url.includes('allactivity') && url.includes('post')) return 'posts';
+    if (url.includes('allactivity') && url.includes('comment')) return 'comments';
+    if (url.includes('allactivity') && url.includes('reaction')) return 'reactions';
     return null;
   }
 
@@ -270,6 +274,19 @@
         if (!isRunning) {
           runCleanupLoop();
         }
+        sendResponse({ ok: true });
+        break;
+
+      case SC_MESSAGES.DUMP_DEBUG:
+        // Run diagnostics and send report to background
+        SC_DEBUG.clear();
+        SC_DEBUG.log('init', 'Debug dump triggered', { url: window.location.href });
+        SC_DEBUG.capturePageSnapshot();
+        SC_DEBUG.testSelectors();
+        SC_DEBUG.log('category', 'Detected category', detectCategory());
+        chrome.runtime.sendMessage(
+          createMessage(SC_MESSAGES.DEBUG_REPORT, { report: SC_DEBUG.getReport() })
+        );
         sendResponse({ ok: true });
         break;
 
