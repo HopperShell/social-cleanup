@@ -204,6 +204,12 @@
         }
       } catch (err) {
         console.warn(`Social Cleanup: Error processing item:`, err.message);
+
+        // Check if element was already removed (stale reference)
+        if (err.message.includes('not attached') || err.message.includes('stale')) {
+          continue;
+        }
+
         await chrome.runtime.sendMessage(
           createMessage(SC_MESSAGES.ACTION_ERROR, { error: err.message })
         );
