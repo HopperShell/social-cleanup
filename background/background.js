@@ -244,28 +244,12 @@ async function handleCategoryComplete(payload) {
   const category = payload.category || state.currentCategory;
   addLogEntry(`Finished ${category}`);
 
-  // If we're reusing an existing tab, don't navigate away — just stop
-  if (state.reusingTab) {
-    state.status = SC_CONSTANTS.STATUS.COMPLETE;
-    state.currentCategory = null;
-    state.reusingTab = false;
-    addLogEntry('Done! Change date or category and run again.');
-    await saveState();
-    broadcastState();
-    return { ...state };
-  }
-
-  const next = getNextCategory();
-  if (next) {
-    state.currentCategory = next;
-    await saveState();
-    await navigateToCategory(next);
-  } else {
-    state.status = SC_CONSTANTS.STATUS.COMPLETE;
-    state.currentCategory = null;
-    addLogEntry('All categories complete!');
-    await saveState();
-  }
+  // Always stop after completing a category — user can start the next one manually
+  state.status = SC_CONSTANTS.STATUS.COMPLETE;
+  state.currentCategory = null;
+  state.reusingTab = false;
+  addLogEntry('Done! Adjust settings and click Start to continue.');
+  await saveState();
   broadcastState();
   return { ...state };
 }
