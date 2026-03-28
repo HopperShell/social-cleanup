@@ -182,7 +182,7 @@
     if (deleteBefore) {
       console.log(`Social Cleanup: Scrolling to find items before ${deleteBefore}...`);
       await chrome.runtime.sendMessage(
-        createMessage(SC_MESSAGES.ACTION_ERROR, { error: `Scrolling to reach posts before ${deleteBefore}... please wait` })
+        createMessage(SC_MESSAGES.PROGRESS_UPDATE, { message: `Scrolling to reach posts before ${deleteBefore}...` })
       );
 
       let foundOldItems = false;
