@@ -4,9 +4,10 @@ const elements = {
   statusBar: $('#status-bar'),
   statusIcon: $('#status-icon'),
   statusText: $('#status-text'),
-  catPosts: $('#cat-posts'),
-  catComments: $('#cat-comments'),
-  catReactions: $('#cat-reactions'),
+  navPosts: $('#nav-posts'),
+  navComments: $('#nav-comments'),
+  navReactions: $('#nav-reactions'),
+  currentPage: $('#current-page'),
   btnStart: $('#btn-start'),
   btnPause: $('#btn-pause'),
   btnResume: $('#btn-resume'),
@@ -24,6 +25,50 @@ const elements = {
 
 function send(type, payload = {}) {
   return chrome.runtime.sendMessage(createMessage(type, payload));
+}
+
+// Detect what Activity Log page the user is currently on
+async function detectCurrentPage() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = (tabs[0]?.url || '').toLowerCase();
+
+  // Highlight the active nav button
+  elements.navPosts.classList.remove('active');
+  elements.navComments.classList.remove('active');
+  elements.navReactions.classList.remove('active');
+
+  if (url.includes('statuscluster')) {
+    elements.navPosts.classList.add('active');
+    elements.currentPage.textContent = 'Currently on: Posts';
+  } else if (url.includes('commentscluster')) {
+    elements.navComments.classList.add('active');
+    elements.currentPage.textContent = 'Currently on: Comments';
+  } else if (url.includes('category_key=likes')) {
+    elements.navReactions.classList.add('active');
+    elements.currentPage.textContent = 'Currently on: Reactions';
+  } else if (url.includes('allactivity')) {
+    elements.currentPage.textContent = 'On Activity Log (pick a category)';
+  } else {
+    elements.currentPage.textContent = 'Not on Activity Log — pick a category';
+  }
+}
+
+// Navigate to a category
+async function navigateTo(category) {
+  const urls = {
+    posts: SC_CONSTANTS.URLS.POSTS,
+    comments: SC_CONSTANTS.URLS.COMMENTS,
+    reactions: SC_CONSTANTS.URLS.REACTIONS,
+  };
+
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tabs[0]) {
+    await chrome.tabs.update(tabs[0].id, { url: urls[category] });
+  } else {
+    await chrome.tabs.create({ url: urls[category] });
+  }
+  // Close popup — user will see the page loading
+  window.close();
 }
 
 function updateUI(state) {
@@ -57,9 +102,6 @@ function updateUI(state) {
   elements.btnResume.hidden = !isPaused;
   elements.btnStop.hidden = isIdle;
 
-  elements.catPosts.disabled = !isIdle;
-  elements.catComments.disabled = !isIdle;
-  elements.catReactions.disabled = !isIdle;
   elements.deleteBefore.disabled = !isIdle;
 
   if (state.categories) {
@@ -85,12 +127,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Navigation buttons
+elements.navPosts.addEventListener('click', () => navigateTo('posts'));
+elements.navComments.addEventListener('click', () => navigateTo('comments'));
+elements.navReactions.addEventListener('click', () => navigateTo('reactions'));
+
+// Start — just tells background to go, background detects the current tab
 elements.btnStart.addEventListener('click', async () => {
-  const categories = {
-    posts: elements.catPosts.checked,
-    comments: elements.catComments.checked,
-    reactions: elements.catReactions.checked,
-  };
+  const categories = { posts: true, comments: true, reactions: true };
   const deleteBefore = elements.deleteBefore.value || null;
   const state = await send(SC_MESSAGES.USER_START, { categories, deleteBefore });
   updateUI(state);
@@ -129,7 +173,9 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
+// Initial load
 send(SC_MESSAGES.GET_STATE).then(updateUI);
+detectCurrentPage();
 
 setInterval(async () => {
   const state = await send(SC_MESSAGES.GET_STATE);

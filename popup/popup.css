@@ -47,18 +47,44 @@ h1 {
 .status.complete { background: #cce5ff; color: #004085; }
 .status.error { background: #f8d7da; color: #721c24; }
 
-.categories {
-  display: flex;
-  gap: 12px;
+.nav-section {
   margin-bottom: 12px;
 }
 
-.categories label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.nav-label {
+  display: block;
   font-size: 12px;
-  cursor: pointer;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.btn-nav {
+  background: #e9ecef;
+  color: #495057;
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.btn-nav:hover {
+  background: #dee2e6;
+}
+
+.btn-nav.active {
+  background: #4361ee;
+  color: white;
+}
+
+.nav-hint {
+  font-size: 10px;
+  color: #adb5bd;
 }
 
 .date-filter {
