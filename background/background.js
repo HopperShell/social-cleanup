@@ -277,12 +277,11 @@ async function handleDumpDebug() {
 
 async function handleDebugReport(payload) {
   const { report } = payload;
-  // Save debug report as a downloadable file
-  const blob = new Blob([report], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  // Save debug report as a downloadable file via data URL (no Blob API in service workers)
+  const dataUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(report)));
   try {
     await chrome.downloads.download({
-      url,
+      url: dataUrl,
       filename: 'social-cleanup-debug.json',
       conflictAction: 'overwrite',
     });
