@@ -1,0 +1,142 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #1a1a2e;
+  background: #f8f9fa;
+}
+
+.container {
+  padding: 16px;
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 2px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: #6c757d;
+  margin-bottom: 12px;
+}
+
+.status {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status.idle { background: #e9ecef; color: #495057; }
+.status.running { background: #d4edda; color: #155724; }
+.status.paused { background: #fff3cd; color: #856404; }
+.status.rate_limited { background: #f8d7da; color: #721c24; }
+.status.complete { background: #cce5ff; color: #004085; }
+.status.error { background: #f8d7da; color: #721c24; }
+
+.categories {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.categories label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  transition: opacity 0.15s;
+}
+
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary { background: #4361ee; color: white; }
+.btn-warning { background: #f59e0b; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+
+.stats {
+  background: white;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.stat-label {
+  color: #6c757d;
+}
+
+.stat-sub {
+  color: #adb5bd;
+  font-size: 11px;
+}
+
+.log-container h3 {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 6px;
+}
+
+.log {
+  max-height: 180px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.log-entry {
+  font-size: 11px;
+  color: #495057;
+  padding: 2px 0;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-time {
+  color: #adb5bd;
+  margin-right: 6px;
+}
