@@ -74,11 +74,19 @@ const SC_SELECTORS = {
   getConfirmButton() {
     const dialog = document.querySelector('[role="dialog"]');
     if (!dialog) return null;
-    const buttons = dialog.querySelectorAll('[role="button"]');
+    // Look for buttons and anything clickable in the dialog
+    const buttons = dialog.querySelectorAll('[role="button"], button');
     for (const btn of buttons) {
       const text = btn.textContent.trim().toLowerCase();
-      if (text === 'delete' || text === 'confirm' || text === 'remove' ||
-          text === 'continue' || text === 'move to trash' || text === 'move') {
+      if (text.includes('move to trash') || text.includes('delete') ||
+          text.includes('confirm') || text.includes('remove') || text.includes('continue')) {
+        return btn;
+      }
+    }
+    // Fallback: look for the primary/blue styled button (not "Cancel")
+    for (const btn of buttons) {
+      const text = btn.textContent.trim().toLowerCase();
+      if (text !== 'cancel' && text !== 'close' && text.length > 0) {
         return btn;
       }
     }
