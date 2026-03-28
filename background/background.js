@@ -296,6 +296,20 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
+// When the Activity Log tab finishes loading, tell content script to start
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (tabId !== state.activeTabId) return;
+  if (changeInfo.status !== 'complete') return;
+  if (state.status !== SC_CONSTANTS.STATUS.RUNNING) return;
+
+  // Give the page a moment to render its content
+  setTimeout(() => {
+    chrome.tabs.sendMessage(tabId, createMessage(SC_MESSAGES.START_CLEANUP)).catch(() => {
+      // Content script may not be injected yet — the content script's auto-start will handle it
+    });
+  }, 3000);
+});
+
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tabId === state.activeTabId && state.status === SC_CONSTANTS.STATUS.RUNNING) {
     state.status = SC_CONSTANTS.STATUS.PAUSED;
