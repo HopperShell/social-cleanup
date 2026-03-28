@@ -109,6 +109,11 @@ const SC_SELECTORS = {
         return true;
       }
     }
+    // Also check for empty state messages
+    const bodyText = document.body.textContent.toLowerCase();
+    if (bodyText.includes('no activity to review') || bodyText.includes('nothing to show')) {
+      return true;
+    }
     return false;
   },
 
