@@ -122,7 +122,17 @@ async function handleStart(payload) {
   if (existingTabs.length > 0) {
     state.activeTabId = existingTabs[0].id;
     state.reusingTab = true;
-    addLogEntry('Using existing Activity Log tab — will not navigate away');
+
+    // Detect what category the existing tab is on
+    const tabUrl = (existingTabs[0].url || '').toLowerCase();
+    if (tabUrl.includes('statuscluster')) {
+      state.currentCategory = 'posts';
+    } else if (tabUrl.includes('commentscluster')) {
+      state.currentCategory = 'comments';
+    } else if (tabUrl.includes('likes')) {
+      state.currentCategory = 'reactions';
+    }
+    addLogEntry(`Using existing Activity Log tab (${state.currentCategory}) — will not navigate away`);
     await saveState();
     // Inject scripts and start cleanup directly on the existing tab
     try {
