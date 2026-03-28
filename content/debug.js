@@ -98,6 +98,69 @@ const SC_DEBUG = {
       }
     }
 
+    // Deep dive into [role="main"] — the actual page content, not sidebar/Messenger
+    const mainRegion = document.querySelector('[role="main"]');
+    snapshot.mainContent = null;
+    if (mainRegion) {
+      // Get all direct and near-direct children structure
+      const mainChildren = [];
+      const walk = (el, depth) => {
+        if (depth > 4 || mainChildren.length > 50) return;
+        const info = {
+          tag: el.tagName?.toLowerCase(),
+          role: el.getAttribute?.('role') || null,
+          ariaLabel: el.getAttribute?.('aria-label') || null,
+          dataTestId: el.getAttribute?.('data-testid') || null,
+          childCount: el.children?.length || 0,
+          textPreview: el.textContent?.trim()?.substring(0, 80) || '',
+          depth,
+        };
+        // Only include elements that have meaningful content or attributes
+        if (info.role || info.ariaLabel || info.dataTestId || info.childCount > 0) {
+          mainChildren.push(info);
+        }
+        if (el.children) {
+          for (const child of el.children) {
+            walk(child, depth + 1);
+          }
+        }
+      };
+      walk(mainRegion, 0);
+
+      // Also look for anything that has text containing activity-related keywords
+      const activityKeywords = ['delete', 'trash', 'remove', 'posted', 'shared', 'commented', 'liked', 'reacted'];
+      const keywordHits = [];
+      const allEls = mainRegion.querySelectorAll('*');
+      for (const el of allEls) {
+        const text = el.textContent?.trim()?.toLowerCase() || '';
+        if (text.length > 5 && text.length < 200) {
+          for (const kw of activityKeywords) {
+            if (text.includes(kw)) {
+              keywordHits.push({
+                tag: el.tagName?.toLowerCase(),
+                role: el.getAttribute?.('role') || null,
+                text: el.textContent?.trim()?.substring(0, 100),
+                parentTag: el.parentElement?.tagName?.toLowerCase(),
+                parentRole: el.parentElement?.getAttribute?.('role') || null,
+              });
+              break;
+            }
+          }
+          if (keywordHits.length >= 20) break;
+        }
+      }
+
+      snapshot.mainContent = {
+        tag: mainRegion.tagName?.toLowerCase(),
+        role: mainRegion.getAttribute('role'),
+        childCount: mainRegion.children.length,
+        textLength: mainRegion.textContent.length,
+        textPreview: mainRegion.textContent.trim().substring(0, 300),
+        structure: mainChildren.slice(0, 30),
+        keywordHits,
+      };
+    }
+
     this.log('snapshot', 'Page snapshot captured', snapshot);
     return snapshot;
   },
