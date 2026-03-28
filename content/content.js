@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 4;
+  const SC_VERSION = 5;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -12,6 +12,17 @@
   let isPaused = false;
   let currentCategory = null;
   let deleteBefore = null; // ISO date string cutoff
+
+  // Runtime log buffer — captured by debug dump
+  const runtimeLog = [];
+  function rlog(msg) {
+    const entry = `${new Date().toISOString()} ${msg}`;
+    runtimeLog.push(entry);
+    if (runtimeLog.length > 200) runtimeLog.shift();
+    console.log(`Social Cleanup: ${msg}`);
+  }
+  // Expose for debug dump
+  window._socialCleanupLog = runtimeLog;
 
   function detectCategory() {
     const url = window.location.href.toLowerCase();
@@ -93,7 +104,7 @@
     // Log what menu options are actually visible for debugging
     const allMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
     const menuTexts = Array.from(allMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
-    console.log('Social Cleanup: Menu options found:', menuTexts);
+    rlog(`Menu options found: ${menuTexts.join(', ')}`);
 
     // Try all possible delete/remove option texts
     const deleteTexts = currentCategory === 'reactions'
@@ -111,7 +122,7 @@
       await delay(1000, 1500);
       const retryMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
       const retryTexts = Array.from(retryMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
-      console.log('Social Cleanup: Menu options (retry):', retryTexts);
+      rlog(`Menu options (retry): ${retryTexts.join(', ')}`);
 
       for (const text of deleteTexts) {
         deleteOption = SC_SELECTORS.getMenuOption(text);
@@ -203,12 +214,12 @@
       return;
     }
 
-    console.log(`Social Cleanup: Starting ${currentCategory} cleanup`);
-    console.log(`Social Cleanup: deleteBefore = ${deleteBefore}`);
+    rlog(`Starting ${currentCategory} cleanup`);
+    rlog(`deleteBefore = ${deleteBefore}`);
 
     // Phase 1: If date filter is set, scroll down until we reach items older than the cutoff
     if (deleteBefore) {
-      console.log(`Social Cleanup: Scrolling to find items before ${deleteBefore}...`);
+      rlog(`Scrolling to find items before ${deleteBefore}...`);
       await chrome.runtime.sendMessage(
         createMessage(SC_MESSAGES.PROGRESS_UPDATE, { message: `Scrolling to reach posts before ${deleteBefore}...` })
       );
@@ -226,7 +237,7 @@
           const lastDate = SC_SELECTORS.getItemDate(lastItem);
           if (lastDate < deleteBefore) {
             foundOldItems = true;
-            console.log(`Social Cleanup: Found items from ${lastDate}, ready to delete`);
+            rlog(`Found items from ${lastDate}, ready to delete`);
             break;
           }
         }
@@ -241,17 +252,17 @@
         if (scrollAttempts % 50 === 0) {
           const items2 = SC_SELECTORS.getActivityItems();
           const lastDate2 = items2.length > 0 ? SC_SELECTORS.getItemDate(items2[items2.length - 1]) : 'unknown';
-          console.log(`Social Cleanup: Scrolled ${scrollAttempts} times, latest loaded: ${lastDate2}`);
+          rlog(`Scrolled ${scrollAttempts} times, latest loaded: ${lastDate2}`);
         }
 
         if (SC_SELECTORS.isEndOfList()) {
-          console.log('Social Cleanup: Reached end of list before finding target date');
+          rlog('Reached end of list before finding target date');
           break;
         }
       }
 
       if (!foundOldItems) {
-        console.log('Social Cleanup: Could not find items before cutoff date');
+        rlog('Could not find items before cutoff date');
       }
     }
 
@@ -263,7 +274,7 @@
       // Invalidate cache each iteration to get fresh DOM
       SC_SELECTORS._containerCache = null;
       const items = SC_SELECTORS.getActivityItems();
-      console.log(`Social Cleanup: Loop iteration — ${items.length} items, noNew=${noNewItemsCount}, deleted=${totalDeleted}, isPaused=${isPaused}, isRunning=${isRunning}`);
+      rlog(`Loop: ${items.length} items, noNew=${noNewItemsCount}, deleted=${totalDeleted}, paused=${isPaused}, running=${isRunning}`);
 
       if (items.length === 0) {
         // After a deletion, the DOM may be updating — wait longer before giving up
@@ -284,7 +295,7 @@
           noNewItemsCount++;
           // Be patient — need 10 consecutive empty checks before giving up
           if (noNewItemsCount >= 10) {
-            console.log(`Social Cleanup: No more ${currentCategory} to process`);
+            rlog(`No more ${currentCategory} to process (gave up after 10 empty checks)`);
             await chrome.runtime.sendMessage(
               createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
             );
@@ -313,7 +324,7 @@
       if (!item) {
         const lastDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[items.length - 1]) : 'none';
         const firstDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[0]) : 'none';
-        console.log(`Social Cleanup: No deletable items — ${items.length} items, dates ${firstDate} to ${lastDate}, cutoff ${deleteBefore}`);
+        rlog(`No deletable items — ${items.length} items, dates ${firstDate} to ${lastDate}, cutoff ${deleteBefore}`);
         await chrome.runtime.sendMessage(
           createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
         );
@@ -334,11 +345,11 @@
             break;
         }
         totalDeleted++;
-        console.log(`Social Cleanup: Deleted item #${totalDeleted}`);
+        rlog(`Deleted item #${totalDeleted}`);
         // Wait for DOM to settle after deletion
         await delay(1000, 2000);
       } catch (err) {
-        console.warn(`Social Cleanup: Error processing item:`, err.message);
+        rlog(`Error processing item: ${err.message}`);
 
         // Check if element was already removed (stale reference)
         if (err.message.includes('not attached') || err.message.includes('stale')) {
@@ -367,7 +378,7 @@
         // Load date filter from background state BEFORE starting the loop
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
-          console.log('Social Cleanup: deleteBefore =', deleteBefore);
+          rlog(`START_CLEANUP received, deleteBefore = ${deleteBefore}`);
           runCleanupLoop();
         });
         sendResponse({ ok: true });
@@ -392,10 +403,17 @@
       case SC_MESSAGES.DUMP_DEBUG:
         // Run diagnostics and send report to background
         SC_DEBUG.clear();
-        SC_DEBUG.log('init', 'Debug dump triggered', { url: window.location.href });
+        SC_DEBUG.log('init', 'Debug dump triggered', {
+          url: window.location.href,
+          isRunning,
+          isPaused,
+          currentCategory,
+          deleteBefore,
+        });
         SC_DEBUG.capturePageSnapshot();
         SC_DEBUG.testSelectors();
         SC_DEBUG.log('category', 'Detected category', detectCategory());
+        SC_DEBUG.log('runtimeLog', 'Last 200 runtime log entries', window._socialCleanupLog || []);
         chrome.runtime.sendMessage(
           createMessage(SC_MESSAGES.DEBUG_REPORT, { report: SC_DEBUG.getReport() })
         );
@@ -414,7 +432,7 @@
       const state = await chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE));
       if (state && state.status === SC_CONSTANTS.STATUS.RUNNING && !state.reusingTab) {
         deleteBefore = state.deleteBefore || null;
-        console.log('Social Cleanup: Page loaded, auto-starting cleanup, deleteBefore =', deleteBefore);
+        rlog(`Auto-start: page loaded, deleteBefore = ${deleteBefore}`);
         runCleanupLoop();
         return true;
       }
