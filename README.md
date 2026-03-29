@@ -6,7 +6,7 @@ Bulk-delete your old Facebook posts, comments, and reactions. Runs right in your
 
 ## Install (2 minutes)
 
-1. **Download** this extension: [Click here to download ZIP](https://github.com/HopperShell/social-cleanup/archive/refs/heads/main.zip)
+1. **Download** this extension: [Click here to download ZIP](https://github.com/HopperShell/social-cleanup/releases/latest/download/social-cleanup-v1.0.0.zip)
 2. **Unzip** the downloaded file (double-click it)
 3. Open Chrome and go to **chrome://extensions**
 4. Turn on **Developer mode** (toggle in the top-right corner)
