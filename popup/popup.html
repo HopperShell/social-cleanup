@@ -10,57 +10,72 @@
     <p class="subtitle">Facebook Activity Cleaner</p>
 
     <div id="status-bar" class="status idle">
-      <span id="status-icon">●</span>
-      <span id="status-text">Idle</span>
+      <span id="status-icon"></span>
+      <span id="status-text">Ready</span>
     </div>
 
-    <div class="nav-section">
-      <label class="nav-label">Open Activity Log:</label>
+    <!-- Step 1: Pick what to clean -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">1</span>
+        <span class="step-title">Pick what to clean</span>
+      </div>
       <div class="nav-buttons">
         <button id="nav-posts" class="btn btn-nav">Posts</button>
         <button id="nav-comments" class="btn btn-nav">Comments</button>
         <button id="nav-reactions" class="btn btn-nav">Reactions</button>
       </div>
-      <p id="current-page" class="nav-hint">Not on Activity Log</p>
+      <p id="current-page" class="step-hint">Click a button to open that page</p>
     </div>
 
-    <div class="date-filter">
-      <label for="delete-before">Only delete items older than:</label>
+    <!-- Step 2: Optional date filter -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <span class="step-title">Set a date limit (optional)</span>
+      </div>
       <input type="date" id="delete-before">
-      <p class="date-hint">Leave empty to delete everything</p>
+      <p class="step-hint">Only deletes items OLDER than this date. Leave blank to delete all.</p>
     </div>
 
-    <div class="controls">
-      <button id="btn-start" class="btn btn-primary">Start Cleanup</button>
-      <button id="btn-pause" class="btn btn-warning" hidden>Pause</button>
-      <button id="btn-resume" class="btn btn-primary" hidden>Resume</button>
-      <button id="btn-stop" class="btn btn-danger" hidden>Stop</button>
+    <!-- Step 3: Go -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <span class="step-title">Run it</span>
+      </div>
+      <div class="controls">
+        <button id="btn-start" class="btn btn-primary">Start Cleanup</button>
+        <button id="btn-pause" class="btn btn-warning" hidden>Pause</button>
+        <button id="btn-resume" class="btn btn-primary" hidden>Resume</button>
+        <button id="btn-stop" class="btn btn-danger" hidden>Stop</button>
+      </div>
+      <p class="step-hint">Sit back — it clicks through your Activity Log automatically.</p>
     </div>
 
+    <!-- Progress -->
     <div class="stats" id="stats" hidden>
       <div class="stat-row">
-        <span class="stat-label">Posts deleted:</span>
+        <span class="stat-label">Posts:</span>
         <span id="stat-posts">0</span>
         <span class="stat-sub">(<span id="stat-photos">0</span> photos saved)</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Comments deleted:</span>
+        <span class="stat-label">Comments:</span>
         <span id="stat-comments">0</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Reactions removed:</span>
+        <span class="stat-label">Reactions:</span>
         <span id="stat-reactions">0</span>
       </div>
     </div>
 
     <div class="log-container" id="log-container" hidden>
-      <h3>Activity Log</h3>
       <div id="log" class="log"></div>
     </div>
 
     <div class="debug-section">
       <button id="btn-debug" class="btn btn-debug">Dump Debug Log</button>
-      <p class="debug-hint">Saves diagnostic info to Downloads/social-cleanup-debug.json</p>
     </div>
   </div>
 
