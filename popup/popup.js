@@ -14,12 +14,12 @@ const elements = {
   btnStop: $('#btn-stop'),
   stats: $('#stats'),
   statPosts: $('#stat-posts'),
-  statPhotos: $('#stat-photos'),
   statComments: $('#stat-comments'),
   statReactions: $('#stat-reactions'),
   logContainer: $('#log-container'),
   log: $('#log'),
   deleteBefore: $('#delete-before'),
+  skipPhotos: $('#skip-photos'),
   btnDebug: $('#btn-debug'),
 };
 
@@ -105,11 +105,11 @@ function updateUI(state) {
   elements.btnStop.hidden = isIdle;
 
   if (elements.deleteBefore) elements.deleteBefore.disabled = !isIdle;
+  if (elements.skipPhotos) elements.skipPhotos.disabled = !isIdle;
 
   if (state.categories) {
     elements.stats.hidden = false;
     elements.statPosts.textContent = state.categories.posts.deleted;
-    elements.statPhotos.textContent = state.categories.posts.photosSaved;
     elements.statComments.textContent = state.categories.comments.deleted;
     elements.statReactions.textContent = state.categories.reactions.deleted;
   }
@@ -138,7 +138,8 @@ elements.navReactions.addEventListener('click', () => navigateTo('reactions'));
 elements.btnStart.addEventListener('click', async () => {
   const categories = { posts: true, comments: true, reactions: true };
   const deleteBefore = elements.deleteBefore.value || null;
-  const state = await send(SC_MESSAGES.USER_START, { categories, deleteBefore });
+  const skipPhotoPosts = elements.skipPhotos.checked;
+  const state = await send(SC_MESSAGES.USER_START, { categories, deleteBefore, skipPhotoPosts });
   updateUI(state);
 });
 
