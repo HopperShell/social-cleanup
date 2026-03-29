@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 8;
+  const SC_VERSION = 10;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -171,25 +171,51 @@
     }
 
     simulateClick(deleteOption);
+    rlog(`Clicked: ${deleteOption.textContent.trim()}`);
 
     // Wait for confirmation dialog or direct deletion
     try {
       const confirmBtn = await waitFor(() => SC_SELECTORS.getConfirmButton(), 2000, 100);
       if (confirmBtn) {
-        simulateClick(confirmBtn);
-        await delay(200, 400);
+        rlog(`Confirm button found: "${confirmBtn.textContent.trim()}" in dialog`);
+
+        // Try multiple click strategies — Facebook's React can be picky about confirm buttons
+        for (let clickAttempt = 0; clickAttempt < 3; clickAttempt++) {
+          // Strategy 1: Full pointer event sequence
+          simulateClick(confirmBtn);
+          await delay(300, 500);
+
+          // Check if dialog was dismissed
+          const dialogStillOpen = SC_SELECTORS.getConfirmButton();
+          if (!dialogStillOpen) break; // success
+
+          rlog(`Confirm click attempt ${clickAttempt + 1} didn't dismiss dialog, retrying`);
+
+          // Strategy 2: Try keyboard Enter on the button
+          if (clickAttempt === 1) {
+            confirmBtn.focus();
+            confirmBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+            confirmBtn.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }));
+            await delay(300, 500);
+            if (!SC_SELECTORS.getConfirmButton()) break;
+          }
+
+          // Strategy 3: Find and click the button fresh (DOM may have changed)
+          if (clickAttempt === 2) {
+            const freshBtn = SC_SELECTORS.getConfirmButton();
+            if (freshBtn) {
+              freshBtn.click();
+              await delay(300, 500);
+            }
+          }
+        }
       }
     } catch {
-      // No confirmation dialog — fine
+      rlog('No confirmation dialog appeared');
     }
   }
 
   async function processPost(item) {
-    if (skipPhotoPosts && isPhotoPost(item)) {
-      rlog('Skipping photo post');
-      return 'skipped';
-    }
-
     await deleteItem(item);
 
     const description = item.textContent.trim().substring(0, 50);
@@ -287,7 +313,9 @@
     // Phase 2: Process items (delete from the bottom up to avoid skipping)
     let noNewItemsCount = 0;
     let totalDeleted = 0;
-    const skippedItems = new WeakSet(); // track photo posts we've skipped
+    let lastItemText = '';
+    let sameItemCount = 0;
+    const failedItemTexts = new Set(); // items we couldn't delete — never retry
 
     while (isRunning && !isPaused) {
       // Invalidate cache each iteration to get fresh DOM
@@ -336,18 +364,32 @@
       const firstItemDate = SC_SELECTORS.getItemDate(items[0]);
       rlog(`Dates: first=${firstItemDate}, last=${lastItemDate}, cutoff=${deleteBefore}`);
 
+      let skippedPhotos = 0;
       for (let i = items.length - 1; i >= 0; i--) {
-        if (!isTooRecent(items[i]) && !skippedItems.has(items[i])) {
-          item = items[i];
-          break;
+        if (isTooRecent(items[i])) continue;
+        if (skipPhotoPosts && currentCategory === 'posts' && isPhotoPost(items[i])) {
+          skippedPhotos++;
+          continue;
         }
+        if (failedItemTexts.has(items[i].textContent.trim().substring(0, 80))) continue;
+        item = items[i];
+        break;
       }
-
-      // If no deletable items found, we're done (all remaining are too recent)
+      // If no deletable items found (all too recent, all photo posts, or all failed)
       if (!item) {
         const lastDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[items.length - 1]) : 'none';
         const firstDate = items.length > 0 ? SC_SELECTORS.getItemDate(items[0]) : 'none';
-        rlog(`No deletable items — ${items.length} items, dates ${firstDate} to ${lastDate}, cutoff ${deleteBefore}`);
+
+        if (skippedPhotos > 0) {
+          rlog(`Done — ${skippedPhotos} photo post(s) remain (skipped). ${totalDeleted} deleted total.`);
+          await chrome.runtime.sendMessage(
+            createMessage(SC_MESSAGES.PROGRESS_UPDATE, {
+              message: `Done — skipped ${skippedPhotos} photo post(s), deleted ${totalDeleted} non-photo posts`
+            })
+          );
+        } else {
+          rlog(`No deletable items — ${items.length} items, dates ${firstDate} to ${lastDate}, cutoff ${deleteBefore}`);
+        }
         await chrome.runtime.sendMessage(
           createMessage(SC_MESSAGES.CATEGORY_COMPLETE, { category: currentCategory })
         );
@@ -355,38 +397,73 @@
         return;
       }
 
-      try {
-        let result;
-        switch (currentCategory) {
-          case 'posts':
-            result = await processPost(item);
-            break;
-          case 'comments':
-            await processComment(item);
-            break;
-          case 'reactions':
-            await processReaction(item);
-            break;
-        }
-        if (result === 'skipped') {
-          skippedItems.add(item);
+      // Detect if we're stuck on the same item
+      const itemText = item.textContent.trim().substring(0, 80);
+      if (itemText === lastItemText) {
+        sameItemCount++;
+        if (sameItemCount >= 3) {
+          rlog(`Stuck on same item ${sameItemCount} times, permanently skipping: ${itemText.substring(0, 50)}`);
+          failedItemTexts.add(itemText);
+          // Dismiss any leftover dialogs/menus before moving on
+          document.body.click();
+          await delay(300, 500);
+          const dialogs = document.querySelectorAll('[role="dialog"]');
+          for (const d of dialogs) {
+            const closeBtn = d.querySelector('[aria-label="Close"]');
+            if (closeBtn) {
+              simulateClick(closeBtn);
+              await delay(200, 300);
+            }
+          }
+          sameItemCount = 0;
+          lastItemText = '';
           continue;
         }
+      } else {
+        sameItemCount = 1;
+        lastItemText = itemText;
+      }
+
+      try {
+        // Wrap deletion in a timeout so we never hang forever
+        const deletePromise = (async () => {
+          switch (currentCategory) {
+            case 'posts': await processPost(item); break;
+            case 'comments': await processComment(item); break;
+            case 'reactions': await processReaction(item); break;
+          }
+        })();
+
+        await Promise.race([
+          deletePromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Deletion timed out after 15s')), 15000)),
+        ]);
+
         totalDeleted++;
-        rlog(`Deleted item #${totalDeleted}`);
-        // Wait for DOM to settle after deletion
         await delay(300, 600);
+        rlog(`Deleted item #${totalDeleted}: ${itemText.substring(0, 60)}`);
       } catch (err) {
         rlog(`Error processing item: ${err.message}`);
+
+        // Dismiss any stale menus/dialogs after an error
+        document.body.click();
+        await delay(200, 400);
 
         // Check if element was already removed (stale reference)
         if (err.message.includes('not attached') || err.message.includes('stale')) {
           continue;
         }
 
-        await chrome.runtime.sendMessage(
-          createMessage(SC_MESSAGES.ACTION_ERROR, { error: err.message })
-        );
+        try {
+          await chrome.runtime.sendMessage(
+            createMessage(SC_MESSAGES.ACTION_ERROR, { error: err.message })
+          );
+        } catch {
+          // Extension context may have been invalidated
+          rlog('Lost connection to extension — stopping');
+          isRunning = false;
+          return;
+        }
 
         if (items.length === 1) {
           SC_SELECTORS.scrollToLoadMore();

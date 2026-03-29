@@ -92,30 +92,26 @@ const SC_SELECTORS = {
   },
 
   // Find confirmation dialog and its confirm button
-  // Searches ALL dialogs on the page since Facebook may have multiple
-  // (e.g., Notifications dialog) and querySelector only returns the first
+  // Only targets small confirmation dialogs (Move to Trash?, Delete?, etc.)
+  // Skips large dialogs like Notifications which can have buttons matching our text
   getConfirmButton() {
     const dialogs = document.querySelectorAll('[role="dialog"]');
     if (!dialogs.length) return null;
 
     const confirmTexts = ['move to trash', 'delete', 'confirm', 'remove', 'continue'];
+    const dialogHeadings = ['move to trash', 'delete', 'are you sure', 'remove', 'confirm'];
 
-    // First pass: find a dialog with an explicit confirm action button
+    // First: find a dialog whose heading/content indicates it's a confirmation prompt
     for (const dialog of dialogs) {
+      const dialogText = dialog.textContent.trim().toLowerCase();
+      const isConfirmDialog = dialogHeadings.some(h => dialogText.startsWith(h) || dialogText.includes(h + '?'));
+      // Skip large dialogs (Notifications, etc.) — confirmation dialogs are small
+      if (!isConfirmDialog && dialogText.length > 500) continue;
+
       const buttons = dialog.querySelectorAll('[role="button"], button');
       for (const btn of buttons) {
         const text = btn.textContent.trim().toLowerCase();
         if (confirmTexts.some(t => text.includes(t))) {
-          return btn;
-        }
-      }
-    }
-    // Fallback: any dialog with a non-Cancel button
-    for (const dialog of dialogs) {
-      const buttons = dialog.querySelectorAll('[role="button"], button');
-      for (const btn of buttons) {
-        const text = btn.textContent.trim().toLowerCase();
-        if (text !== 'cancel' && text !== 'close' && text.length > 0) {
           return btn;
         }
       }

@@ -5,6 +5,7 @@
   "description": "Bulk-delete Facebook posts, comments, and reactions via Activity Log",
   "permissions": [
     "activeTab",
+    "downloads",
     "storage",
     "tabs",
     "scripting"
