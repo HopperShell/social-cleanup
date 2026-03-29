@@ -7,9 +7,9 @@ const SC_CONSTANTS = {
   },
   CATEGORIES: ['posts', 'comments', 'reactions'],
   TIMING: {
-    MIN_DELAY: 2000,
-    MAX_DELAY: 5000,
-    MUTATION_WAIT: 1500,
+    MIN_DELAY: 500,
+    MAX_DELAY: 1200,
+    MUTATION_WAIT: 1000,
     BACKOFF_BASE: 30000,
     BACKOFF_MAX: 120000,
   },
@@ -21,7 +21,6 @@ const SC_CONSTANTS = {
     COMPLETE: 'complete',
     ERROR: 'error',
   },
-  DOWNLOAD_PATH: 'FacebookBackup',
   MAX_CONSECUTIVE_FAILURES: 3,
   STORAGE_KEY: 'socialCleanupState',
 };

@@ -4,7 +4,7 @@
 
   // Prevent multiple injections from creating duplicate loops
   // Version bump this when code changes to allow new injection after extension reload
-  const SC_VERSION = 7;
+  const SC_VERSION = 8;
   if (window._socialCleanupVersion === SC_VERSION) return;
   window._socialCleanupVersion = SC_VERSION;
 
@@ -12,6 +12,7 @@
   let isPaused = false;
   let currentCategory = null;
   let deleteBefore = null; // ISO date string cutoff
+  let skipPhotoPosts = false;
 
   // Runtime log buffer — captured by debug dump
   const runtimeLog = [];
@@ -23,6 +24,16 @@
   }
   // Expose for debug dump
   window._socialCleanupLog = runtimeLog;
+
+  function isPhotoPost(item) {
+    const text = item.textContent.trim().toLowerCase();
+    return text.includes('added a new photo') || text.includes('added new photo') ||
+      text.includes('new photos') || text.includes('added a photo') ||
+      text.includes('updated his profile picture') || text.includes('updated her profile picture') ||
+      text.includes('updated his cover photo') || text.includes('updated her cover photo') ||
+      text.includes('updated their profile picture') || text.includes('updated their cover photo') ||
+      text.includes('shared a photo') || text.includes('posted a photo');
+  }
 
   function detectCategory() {
     const url = window.location.href.toLowerCase();
@@ -100,13 +111,20 @@
     const existingMenu = document.querySelector('[role="menu"]');
     if (existingMenu) {
       document.body.click();
-      await delay(300, 500);
+      await delay(100, 200);
     }
-    const existingDialog = document.querySelector('[role="dialog"]');
-    if (existingDialog) {
-      const closeBtn = existingDialog.querySelector('[aria-label="Close"]');
-      if (closeBtn) simulateClick(closeBtn);
-      await delay(300, 500);
+    // Dismiss stale confirmation dialogs (skip persistent ones like Notifications)
+    const existingDialogs = document.querySelectorAll('[role="dialog"]');
+    for (const dialog of existingDialogs) {
+      const dialogText = dialog.textContent.trim().toLowerCase();
+      if (dialogText.includes('move to trash') || dialogText.includes('delete') ||
+          dialogText.includes('are you sure') || dialogText.includes('confirm')) {
+        const closeBtn = dialog.querySelector('[aria-label="Close"]');
+        if (closeBtn) {
+          simulateClick(closeBtn);
+          await delay(100, 200);
+        }
+      }
     }
 
     const menuBtn = SC_SELECTORS.getMenuButton(item);
@@ -121,9 +139,9 @@
       : ['delete', 'move to trash', 'trash', 'remove'];
 
     let deleteOption = null;
-    // Poll for menu options up to 3 seconds
+    // Poll for menu options
     for (let attempt = 0; attempt < 6; attempt++) {
-      await delay(400, 600);
+      await delay(150, 300);
 
       const allMenuItems = document.querySelectorAll('[role="menuitem"], [role="option"]');
       const menuTexts = Array.from(allMenuItems).map(el => el.textContent.trim()).filter(t => t.length > 0);
@@ -142,7 +160,7 @@
       if (attempt === 2 && menuTexts.length === 0) {
         rlog('Menu empty after 3 attempts, re-clicking menu button');
         document.body.click();
-        await delay(300, 500);
+        await delay(100, 200);
         simulateClick(menuBtn);
       }
     }
@@ -155,12 +173,11 @@
     simulateClick(deleteOption);
 
     // Wait for confirmation dialog or direct deletion
-    await delay(500, 800);
     try {
-      const confirmBtn = await waitFor(() => SC_SELECTORS.getConfirmButton(), 3000);
+      const confirmBtn = await waitFor(() => SC_SELECTORS.getConfirmButton(), 2000, 100);
       if (confirmBtn) {
         simulateClick(confirmBtn);
-        await delay(500, 1000);
+        await delay(200, 400);
       }
     } catch {
       // No confirmation dialog — fine
@@ -168,26 +185,9 @@
   }
 
   async function processPost(item) {
-    const hasPhoto = SC_SELECTORS.itemHasPhoto(item);
-
-    if (hasPhoto) {
-      const photoUrls = SC_SELECTORS.getPhotoUrls(item);
-      const postId = SC_SELECTORS.getItemId(item);
-      const postDate = SC_SELECTORS.getItemDate(item);
-
-      if (photoUrls.length > 0) {
-        const response = await chrome.runtime.sendMessage(
-          createMessage(SC_MESSAGES.PHOTO_FOUND, {
-            urls: photoUrls,
-            postId,
-            postDate,
-          })
-        );
-
-        if (!response || !response.allSuccess) {
-          console.warn('Some photos failed to download, proceeding with deletion anyway');
-        }
-      }
+    if (skipPhotoPosts && isPhotoPost(item)) {
+      rlog('Skipping photo post');
+      return 'skipped';
     }
 
     await deleteItem(item);
@@ -197,7 +197,6 @@
       createMessage(SC_MESSAGES.ITEM_DELETED, {
         category: 'posts',
         description,
-        hadPhoto: hasPhoto,
       })
     );
   }
@@ -288,6 +287,7 @@
     // Phase 2: Process items (delete from the bottom up to avoid skipping)
     let noNewItemsCount = 0;
     let totalDeleted = 0;
+    const skippedItems = new WeakSet(); // track photo posts we've skipped
 
     while (isRunning && !isPaused) {
       // Invalidate cache each iteration to get fresh DOM
@@ -337,7 +337,7 @@
       rlog(`Dates: first=${firstItemDate}, last=${lastItemDate}, cutoff=${deleteBefore}`);
 
       for (let i = items.length - 1; i >= 0; i--) {
-        if (!isTooRecent(items[i])) {
+        if (!isTooRecent(items[i]) && !skippedItems.has(items[i])) {
           item = items[i];
           break;
         }
@@ -356,9 +356,10 @@
       }
 
       try {
+        let result;
         switch (currentCategory) {
           case 'posts':
-            await processPost(item);
+            result = await processPost(item);
             break;
           case 'comments':
             await processComment(item);
@@ -367,10 +368,14 @@
             await processReaction(item);
             break;
         }
+        if (result === 'skipped') {
+          skippedItems.add(item);
+          continue;
+        }
         totalDeleted++;
         rlog(`Deleted item #${totalDeleted}`);
         // Wait for DOM to settle after deletion
-        await delay(1000, 2000);
+        await delay(300, 600);
       } catch (err) {
         rlog(`Error processing item: ${err.message}`);
 
@@ -401,7 +406,8 @@
         // Load date filter from background state BEFORE starting the loop
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
-          rlog(`START_CLEANUP received, deleteBefore = ${deleteBefore}`);
+          skipPhotoPosts = !!(s && s.skipPhotoPosts);
+          rlog(`START_CLEANUP received, deleteBefore = ${deleteBefore}, skipPhotoPosts = ${skipPhotoPosts}`);
           runCleanupLoop();
         });
         sendResponse({ ok: true });
@@ -425,6 +431,7 @@
         isPaused = false;
         chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE)).then(s => {
           deleteBefore = (s && s.deleteBefore) || null;
+          skipPhotoPosts = !!(s && s.skipPhotoPosts);
           if (!isRunning) {
             runCleanupLoop();
           }
@@ -464,7 +471,8 @@
       const state = await chrome.runtime.sendMessage(createMessage(SC_MESSAGES.GET_STATE));
       if (state && state.status === SC_CONSTANTS.STATUS.RUNNING && !state.reusingTab) {
         deleteBefore = state.deleteBefore || null;
-        rlog(`Auto-start: page loaded, deleteBefore = ${deleteBefore}`);
+        skipPhotoPosts = !!state.skipPhotoPosts;
+        rlog(`Auto-start: page loaded, deleteBefore = ${deleteBefore}, skipPhotoPosts = ${skipPhotoPosts}`);
         runCleanupLoop();
         return true;
       }

@@ -1,4 +1,4 @@
-importScripts('../shared/constants.js', '../shared/messages.js');
+importScripts('/shared/constants.js', '/shared/messages.js');
 
 // ---------------------------------------------------------------------------
 // 1. State Manager
@@ -8,11 +8,12 @@ const DEFAULT_STATE = {
   status: SC_CONSTANTS.STATUS.IDLE,
   currentCategory: null,
   categories: {
-    posts: { enabled: true, deleted: 0, photosSaved: 0 },
+    posts: { enabled: true, deleted: 0 },
     comments: { enabled: true, deleted: 0 },
     reactions: { enabled: true, deleted: 0 },
   },
   deleteBefore: null, // ISO date string — only delete items older than this
+  skipPhotoPosts: false, // skip posts that are photo uploads
   reusingTab: false, // true if we're using a pre-existing Activity Log tab
   consecutiveFailures: 0,
   backoffUntil: null,
@@ -76,8 +77,6 @@ async function handleMessage(message, sender) {
       return await handleStop();
     case SC_MESSAGES.ITEM_DELETED:
       return await handleItemDeleted(message.payload);
-    case SC_MESSAGES.PHOTO_FOUND:
-      return await handlePhotoFound(message.payload);
     case SC_MESSAGES.CATEGORY_COMPLETE:
       return await handleCategoryComplete(message.payload);
     case SC_MESSAGES.ACTION_ERROR:
@@ -104,6 +103,7 @@ async function handleStart(payload) {
     }
   }
   state.deleteBefore = (payload && payload.deleteBefore) || null;
+  state.skipPhotoPosts = !!(payload && payload.skipPhotoPosts);
   state.status = SC_CONSTANTS.STATUS.RUNNING;
   state.currentCategory = getEnabledCategories()[0] || null;
   state.consecutiveFailures = 0;
@@ -289,46 +289,6 @@ async function handleItemDeleted(payload) {
   return { ok: true };
 }
 
-async function handlePhotoFound(payload) {
-  const { urls, postId, postDate } = payload;
-  const results = [];
-  for (let i = 0; i < urls.length; i++) {
-    const url = urls[i];
-    const ext = guessExtension(url);
-    const dateStr = postDate || new Date().toISOString().split('T')[0];
-    const filename = `${SC_CONSTANTS.DOWNLOAD_PATH}/${dateStr}_${postId}_${i + 1}.${ext}`;
-    try {
-      const downloadId = await chrome.downloads.download({
-        url,
-        filename,
-        conflictAction: 'uniquify',
-      });
-      results.push({ downloadId, filename, success: true });
-    } catch (err) {
-      results.push({ filename, success: false, error: err.message });
-      addLogEntry(`Failed to download photo: ${err.message}`);
-    }
-  }
-  const successCount = results.filter(r => r.success).length;
-  if (state.categories.posts) {
-    state.categories.posts.photosSaved += successCount;
-  }
-  addLogEntry(`Downloaded ${successCount}/${urls.length} photos from post`);
-  await saveState();
-  broadcastState();
-  return { results, allSuccess: results.every(r => r.success) };
-}
-
-function guessExtension(url) {
-  try {
-    const pathname = new URL(url).pathname;
-    const match = pathname.match(/\.(jpg|jpeg|png|gif|webp|mp4)/i);
-    return match ? match[1].toLowerCase() : 'jpg';
-  } catch {
-    return 'jpg';
-  }
-}
-
 // ---------------------------------------------------------------------------
 // 6. Debug Logging
 // ---------------------------------------------------------------------------
@@ -453,4 +413,14 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 });
 
-loadState();
+// On extension install/reload, clear stale rate_limited/running states.
+// onStartup only fires on browser launch, not extension reload.
+loadState().then(async () => {
+  if (state.status === SC_CONSTANTS.STATUS.RUNNING || state.status === SC_CONSTANTS.STATUS.RATE_LIMITED) {
+    state.status = SC_CONSTANTS.STATUS.PAUSED;
+    state.consecutiveFailures = 0;
+    state.backoffUntil = null;
+    addLogEntry('Extension reloaded — paused. Click Resume to continue.');
+    await saveState();
+  }
+});

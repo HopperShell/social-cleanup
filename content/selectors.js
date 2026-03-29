@@ -92,63 +92,35 @@ const SC_SELECTORS = {
   },
 
   // Find confirmation dialog and its confirm button
+  // Searches ALL dialogs on the page since Facebook may have multiple
+  // (e.g., Notifications dialog) and querySelector only returns the first
   getConfirmButton() {
-    const dialog = document.querySelector('[role="dialog"]');
-    if (!dialog) return null;
-    // Look for buttons and anything clickable in the dialog
-    const buttons = dialog.querySelectorAll('[role="button"], button');
-    for (const btn of buttons) {
-      const text = btn.textContent.trim().toLowerCase();
-      if (text.includes('move to trash') || text.includes('delete') ||
-          text.includes('confirm') || text.includes('remove') || text.includes('continue')) {
-        return btn;
+    const dialogs = document.querySelectorAll('[role="dialog"]');
+    if (!dialogs.length) return null;
+
+    const confirmTexts = ['move to trash', 'delete', 'confirm', 'remove', 'continue'];
+
+    // First pass: find a dialog with an explicit confirm action button
+    for (const dialog of dialogs) {
+      const buttons = dialog.querySelectorAll('[role="button"], button');
+      for (const btn of buttons) {
+        const text = btn.textContent.trim().toLowerCase();
+        if (confirmTexts.some(t => text.includes(t))) {
+          return btn;
+        }
       }
     }
-    // Fallback: look for the primary/blue styled button (not "Cancel")
-    for (const btn of buttons) {
-      const text = btn.textContent.trim().toLowerCase();
-      if (text !== 'cancel' && text !== 'close' && text.length > 0) {
-        return btn;
+    // Fallback: any dialog with a non-Cancel button
+    for (const dialog of dialogs) {
+      const buttons = dialog.querySelectorAll('[role="button"], button');
+      for (const btn of buttons) {
+        const text = btn.textContent.trim().toLowerCase();
+        if (text !== 'cancel' && text !== 'close' && text.length > 0) {
+          return btn;
+        }
       }
     }
     return null;
-  },
-
-  // Check if an activity item contains photos
-  // Activity items with photos have text like "added a new photo" or "added X new photos"
-  itemHasPhoto(item) {
-    const text = item.textContent.trim().toLowerCase();
-    if (text.includes('added a new photo') || text.includes('added new photo') ||
-        text.includes('new photos') || text.includes('added a photo') ||
-        text.includes('updated his profile picture') || text.includes('updated her profile picture') ||
-        text.includes('updated his cover photo') || text.includes('updated her cover photo')) {
-      return true;
-    }
-    // Also check for actual images (not icons/avatars)
-    const imgs = item.querySelectorAll('img');
-    for (const img of imgs) {
-      const src = img.src || '';
-      if ((src.includes('scontent') || src.includes('fbcdn')) &&
-          img.width > 60 && img.height > 60) {
-        return true;
-      }
-    }
-    return false;
-  },
-
-  // Extract photo URLs from an item
-  getPhotoUrls(item) {
-    const urls = [];
-    const imgs = item.querySelectorAll('img');
-    for (const img of imgs) {
-      const src = img.src || '';
-      if ((src.includes('scontent') || src.includes('fbcdn')) &&
-          img.width > 60 && img.height > 60) {
-        const highRes = src.replace(/\/[sp]\d+x\d+\//, '/').replace(/&width=\d+/, '');
-        urls.push(highRes);
-      }
-    }
-    return urls;
   },
 
   // Extract a post ID from a "View" link

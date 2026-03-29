@@ -87,6 +87,16 @@ h1 {
   line-height: 1.4;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ced4da;
+  cursor: pointer;
+}
+
 /* Nav buttons */
 .nav-buttons {
   display: flex;
