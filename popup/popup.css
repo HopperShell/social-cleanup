@@ -5,7 +5,7 @@
 }
 
 body {
-  width: 340px;
+  width: 360px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   color: #1a1a2e;
@@ -29,12 +29,13 @@ h1 {
   margin-bottom: 12px;
 }
 
+/* Status Bar */
 .status {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -47,30 +48,58 @@ h1 {
 .status.complete { background: #cce5ff; color: #004085; }
 .status.error { background: #f8d7da; color: #721c24; }
 
-.nav-section {
-  margin-bottom: 12px;
+/* Steps */
+.step {
+  margin-bottom: 14px;
 }
 
-.nav-label {
-  display: block;
-  font-size: 12px;
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4361ee;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-title {
+  font-size: 13px;
   font-weight: 600;
-  color: #495057;
-  margin-bottom: 4px;
+  color: #1a1a2e;
 }
 
+.step-hint {
+  font-size: 11px;
+  color: #868e96;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* Nav buttons */
 .nav-buttons {
   display: flex;
   gap: 6px;
-  margin-bottom: 4px;
 }
 
 .btn-nav {
   background: #e9ecef;
   color: #495057;
   flex: 1;
-  padding: 6px 8px;
-  font-size: 11px;
+  padding: 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .btn-nav:hover {
@@ -82,50 +111,29 @@ h1 {
   color: white;
 }
 
-.nav-hint {
-  font-size: 10px;
-  color: #adb5bd;
-}
-
-.date-filter {
-  margin-bottom: 12px;
-}
-
-.date-filter label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 4px;
-}
-
-.date-filter input[type="date"] {
+/* Date input */
+input[type="date"] {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: 1px solid #dee2e6;
   border-radius: 6px;
   font-size: 12px;
   font-family: inherit;
   color: #495057;
+  background: white;
 }
 
-.date-hint {
-  font-size: 10px;
-  color: #adb5bd;
-  margin-top: 2px;
-}
-
+/* Buttons */
 .controls {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 10px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   flex: 1;
@@ -139,11 +147,12 @@ h1 {
 .btn-warning { background: #f59e0b; color: white; }
 .btn-danger { background: #ef4444; color: white; }
 
+/* Stats */
 .stats {
   background: white;
   border-radius: 6px;
   padding: 10px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   border: 1px solid #e9ecef;
 }
 
@@ -157,6 +166,7 @@ h1 {
 
 .stat-label {
   color: #6c757d;
+  font-weight: 600;
 }
 
 .stat-sub {
@@ -164,19 +174,15 @@ h1 {
   font-size: 11px;
 }
 
-.log-container h3 {
-  font-size: 12px;
-  color: #6c757d;
-  margin-bottom: 6px;
-}
-
+/* Log */
 .log {
-  max-height: 180px;
+  max-height: 120px;
   overflow-y: auto;
   background: white;
   border: 1px solid #e9ecef;
   border-radius: 6px;
   padding: 8px;
+  margin-bottom: 8px;
 }
 
 .log-entry {
@@ -195,21 +201,16 @@ h1 {
   margin-right: 6px;
 }
 
+/* Debug */
 .debug-section {
-  margin-top: 12px;
-  padding-top: 12px;
+  padding-top: 8px;
   border-top: 1px solid #e9ecef;
 }
 
 .btn-debug {
-  background: #6c757d;
-  color: white;
+  background: #e9ecef;
+  color: #868e96;
   width: 100%;
-}
-
-.debug-hint {
-  font-size: 10px;
-  color: #adb5bd;
-  margin-top: 4px;
-  text-align: center;
+  font-size: 11px;
+  padding: 6px;
 }

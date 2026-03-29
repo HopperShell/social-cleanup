@@ -1,41 +1,59 @@
 # Social Cleanup
 
-Chrome extension that bulk-deletes your Facebook posts, comments, and reactions via the Activity Log. Automatically downloads photos before deleting posts that contain them.
+Bulk-delete your old Facebook posts, comments, and reactions. Runs right in your browser.
 
-## Features
+---
 
-- **Posts**: Detects photos, downloads them to `Downloads/FacebookBackup/`, then deletes the post
-- **Comments**: Removes all your comments from other people's posts
-- **Reactions**: Removes all your likes, loves, and other reactions
-- **Unattended**: Runs in the background with automatic rate-limit handling
-- **Resumable**: Saves progress — survives browser restarts
+## Install (2 minutes)
 
-## Install
+1. **Download** this extension: [Click here to download ZIP](https://github.com/HopperShell/social-cleanup/archive/refs/heads/main.zip)
+2. **Unzip** the downloaded file (double-click it)
+3. Open Chrome and go to **chrome://extensions**
+4. Turn on **Developer mode** (toggle in the top-right corner)
+5. Click **Load unpacked**
+6. Select the **social-cleanup-main** folder you just unzipped
+7. Done! You'll see the Social Cleanup icon in your toolbar
 
-1. Clone this repo
-2. Open `chrome://extensions/`
-3. Enable "Developer mode" (top right)
-4. Click "Load unpacked"
-5. Select the `social-cleanup/` folder
+> **Tip:** If you don't see the icon, click the puzzle piece icon in Chrome's toolbar and pin Social Cleanup.
 
-## Usage
+---
 
-1. Log into Facebook in Chrome
-2. Click the Social Cleanup extension icon
-3. Select which categories to clean (Posts, Comments, Reactions)
-4. Click "Start Cleanup"
-5. The extension opens your Activity Log and begins deleting items
-6. Monitor progress in the popup — or just let it run
+## How to Use
 
-## How It Works
+### Step 1: Pick what to clean
+Click the extension icon. You'll see three buttons: **Posts**, **Comments**, **Reactions**. Click one — it opens your Facebook Activity Log filtered to that category.
 
-The extension navigates to Facebook's Activity Log filtered views and programmatically clicks through the delete flow for each item. It uses randomized delays (2-5s) between actions and exponential backoff on rate limits.
+### Step 2: Wait for the page to load
+Facebook needs to load your activity history. For old accounts this can take a minute. Just let it load.
 
-Photos are downloaded via Chrome's downloads API to `Downloads/FacebookBackup/` with filenames like `2024-03-15_postid_1.jpg`.
+### Step 3: Set a date (optional)
+If you only want to delete OLD stuff, pick a date. Everything **older** than that date gets deleted. Leave it blank to delete everything.
 
-## Notes
+### Step 4: Click Start
+Hit **Start Cleanup**. The extension will automatically:
+- Scroll through your activity
+- Click the menu on each item
+- Select "Move to Trash" or "Delete"
+- Confirm the dialog
+- Move to the next item
 
-- Facebook's UI changes frequently. Selectors in `content/selectors.js` may need updating.
-- The extension processes items from newest to oldest (Activity Log default order).
-- Rate limiting kicks in after 3 consecutive failures, backing off 30s → 60s → 120s.
-- Progress persists in `chrome.storage.local` — you can close Chrome and resume later.
+You can watch it work or switch to another tab. Click **Pause** or **Stop** anytime.
+
+### Step 5: Repeat for other categories
+When it finishes (or you stop it), go back to the extension and click another category button (Comments, Reactions) to clean those too.
+
+---
+
+## FAQ
+
+**Will this delete my photos?**
+Photos in posts are automatically downloaded to your Downloads/FacebookBackup folder before the post is deleted.
+
+**Can I undo this?**
+Facebook moves items to trash first. They're permanently deleted after 30 days. You can restore them from your Facebook trash before then.
+
+**It stopped working / got stuck**
+Facebook changes their website frequently. Click the "Dump Debug Log" button in the extension and [open an issue](https://github.com/HopperShell/social-cleanup/issues) with the downloaded file attached.
+
+**Does this work on Firefox?**
+Not yet — Chrome only for now.
