@@ -1,4 +1,4 @@
-importScripts('/shared/constants.js', '/shared/messages.js');
+importScripts('../shared/constants.js', '../shared/messages.js');
 
 // ---------------------------------------------------------------------------
 // 1. State Manager
@@ -37,8 +37,8 @@ async function saveState() {
 
 function addLogEntry(message) {
   state.log.unshift({ message, time: Date.now() });
-  if (state.log.length > 100) {
-    state.log = state.log.slice(0, 100);
+  if (state.log.length > 30) {
+    state.log = state.log.slice(0, 30);
   }
 }
 
@@ -77,6 +77,13 @@ async function handleMessage(message, sender) {
       return await handleStop();
     case SC_MESSAGES.ITEM_DELETED:
       return await handleItemDeleted(message.payload);
+    case SC_MESSAGES.PROGRESS_UPDATE:
+      if (message.payload && message.payload.message) {
+        addLogEntry(message.payload.message);
+        await saveState();
+        broadcastState();
+      }
+      return { ok: true };
     case SC_MESSAGES.CATEGORY_COMPLETE:
       return await handleCategoryComplete(message.payload);
     case SC_MESSAGES.ACTION_ERROR:
@@ -108,6 +115,7 @@ async function handleStart(payload) {
   state.currentCategory = getEnabledCategories()[0] || null;
   state.consecutiveFailures = 0;
   state.backoffUntil = null;
+  state.log = []; // clear old log entries on new run
   if (!state.currentCategory) {
     state.status = SC_CONSTANTS.STATUS.IDLE;
     await saveState();
@@ -197,7 +205,8 @@ async function handleStop() {
   state.status = SC_CONSTANTS.STATUS.IDLE;
   state.currentCategory = null;
   state.activeTabId = null;
-  addLogEntry('Stopped by user');
+  state.log = []; // clear log so old entries don't cause confusion
+  addLogEntry('Stopped');
   await saveState();
   broadcastState();
   return { ...state };
@@ -413,8 +422,8 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 });
 
-// On extension install/reload, clear stale rate_limited/running states.
-// onStartup only fires on browser launch, not extension reload.
+// On extension install/reload, clear stale states and re-inject content scripts
+// into any open Facebook tabs so the user doesn't have to refresh.
 loadState().then(async () => {
   if (state.status === SC_CONSTANTS.STATUS.RUNNING || state.status === SC_CONSTANTS.STATUS.RATE_LIMITED) {
     state.status = SC_CONSTANTS.STATUS.PAUSED;
@@ -423,4 +432,26 @@ loadState().then(async () => {
     addLogEntry('Extension reloaded — paused. Click Resume to continue.');
     await saveState();
   }
+
+  // Re-inject content scripts into open Facebook tabs
+  try {
+    const tabs = await chrome.tabs.query({ url: '*://*.facebook.com/*' });
+    for (const tab of tabs) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [
+            'shared/constants.js',
+            'shared/messages.js',
+            'content/debug.js',
+            'content/selectors.js',
+            'content/posts.js',
+            'content/comments.js',
+            'content/reactions.js',
+            'content/content.js',
+          ],
+        });
+      } catch { /* tab may not be accessible */ }
+    }
+  } catch { /* scripting API may not be available */ }
 });

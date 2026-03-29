@@ -104,8 +104,19 @@ function updateUI(state) {
   elements.btnResume.hidden = !isPaused;
   elements.btnStop.hidden = isIdle;
 
-  if (elements.deleteBefore) elements.deleteBefore.disabled = !isIdle;
-  if (elements.skipPhotos) elements.skipPhotos.disabled = !isIdle;
+  if (elements.deleteBefore) {
+    elements.deleteBefore.disabled = !isIdle;
+    if (state.deleteBefore && !elements.deleteBefore.value) {
+      elements.deleteBefore.value = state.deleteBefore;
+    }
+  }
+  if (elements.skipPhotos) {
+    elements.skipPhotos.disabled = !isIdle;
+    // Restore checkbox from state so it persists across popup opens
+    if (state.skipPhotoPosts !== undefined) {
+      elements.skipPhotos.checked = state.skipPhotoPosts;
+    }
+  }
 
   if (state.categories) {
     elements.stats.hidden = false;
