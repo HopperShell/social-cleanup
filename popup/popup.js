@@ -106,16 +106,9 @@ function updateUI(state) {
 
   if (elements.deleteBefore) {
     elements.deleteBefore.disabled = !isIdle;
-    if (state.deleteBefore && !elements.deleteBefore.value) {
-      elements.deleteBefore.value = state.deleteBefore;
-    }
   }
   if (elements.skipPhotos) {
     elements.skipPhotos.disabled = !isIdle;
-    // Restore checkbox from state so it persists across popup opens
-    if (state.skipPhotoPosts !== undefined) {
-      elements.skipPhotos.checked = state.skipPhotoPosts;
-    }
   }
 
   if (state.categories) {
@@ -187,8 +180,18 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
-// Initial load
-send(SC_MESSAGES.GET_STATE).then(updateUI);
+// Initial load — restore settings from state once
+send(SC_MESSAGES.GET_STATE).then(state => {
+  if (state) {
+    if (state.deleteBefore && elements.deleteBefore) {
+      elements.deleteBefore.value = state.deleteBefore;
+    }
+    if (state.skipPhotoPosts && elements.skipPhotos) {
+      elements.skipPhotos.checked = state.skipPhotoPosts;
+    }
+  }
+  updateUI(state);
+});
 detectCurrentPage();
 
 setInterval(async () => {
